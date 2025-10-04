@@ -29,4 +29,8 @@ class UsuarioRepository(ABC):
     def get_by_username(self, username: str) -> Optional[Usuario]:
         raise NotImplementedError
 
+    @abstractmethod
+    def get_by_email(self, email: str) -> Optional[Usuario]:
+        raise NotImplementedError
+
 

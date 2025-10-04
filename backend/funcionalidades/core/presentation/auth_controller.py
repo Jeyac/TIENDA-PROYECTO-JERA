@@ -8,6 +8,7 @@ from funcionalidades.usuarios.application.use_cases.registrar_usuario_use_case i
 from funcionalidades.usuarios.application.use_cases.autenticar_usuario_use_case import AutenticarUsuarioUseCase
 from funcionalidades.usuarios.infrastructure.usuario_repository_impl import UsuarioRepositoryImpl
 from funcionalidades.core.exceptions.auth_exceptions import InvalidCredentialsError, AuthorizationError
+from funcionalidades.core.exceptions import NotFoundError, BadRequestError
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -64,15 +65,21 @@ def login():
     """Inicio de sesión"""
     try:
         data = request.get_json()
+        print(f"DEBUG: Datos recibidos: {data}")
         
-        if not data or not data.get('username') or not data.get('password'):
-            return jsonify({'error': 'Username y password son requeridos'}), 400
+        # Aceptar tanto 'username' como 'username_or_email'
+        username_or_email = data.get('username') or data.get('username_or_email')
+        password = data.get('password')
+        
+        print(f"DEBUG: username_or_email: {username_or_email}, password: {password}")
+        
+        if not data or not username_or_email or not password:
+            return jsonify({'error': 'Username/email y password son requeridos'}), 400
         
         # Autenticar usuario
-        usuario = autenticar_usuario_use_case.ejecutar(
-            username=data['username'],
-            password=data['password']
-        )
+        print("DEBUG: Intentando autenticar usuario...")
+        usuario = autenticar_usuario_use_case.ejecutar(username_or_email, password)
+        print(f"DEBUG: Usuario encontrado: {usuario}")
         
         if not usuario:
             raise InvalidCredentialsError("Credenciales inválidas")
@@ -105,7 +112,12 @@ def login():
         
     except InvalidCredentialsError as e:
         return jsonify({'error': str(e)}), 401
+    except (NotFoundError, BadRequestError) as e:
+        return jsonify({'error': str(e)}), 401
     except Exception as e:
+        print(f"DEBUG: Error en login: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 

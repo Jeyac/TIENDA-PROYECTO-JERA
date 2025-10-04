@@ -120,9 +120,16 @@
             statusDiv.className = 'status disconnected';
         });
 
-        socket.on('bot_response', function(data) {
+        // Mensajes del servidor
+        socket.on('server_message', function(data) {
+            console.log('Servidor:', data);
+            if (data && data.message) addMessage(data.message, 'bot');
+        });
+
+        // Respuesta del bot (evento emitido por el backend)
+        socket.on('answer', function(data) {
             console.log('Respuesta del bot:', data);
-            addMessage(data.message || 'Sin respuesta', 'bot');
+            addMessage((data && data.message) || 'Sin respuesta', 'bot');
         });
 
         socket.on('error', function(data) {

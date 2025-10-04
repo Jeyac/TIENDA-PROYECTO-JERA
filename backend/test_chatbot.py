@@ -20,9 +20,21 @@ def connect():
 def disconnect():
     print("❌ Desconectado del servidor")
 
-@sio.event
-def bot_response(data):
-    print(f"🤖 Bot: {data.get('message', 'Sin respuesta')}")
+@sio.on('server_message')
+def on_server_message(data):
+    try:
+        msg = (data or {}).get('message', str(data))
+    except Exception:
+        msg = str(data)
+    print(f"ℹ️  Servidor: {msg}")
+
+@sio.on('answer')
+def on_answer(data):
+    try:
+        msg = (data or {}).get('message', str(data))
+    except Exception:
+        msg = str(data)
+    print(f"🤖 Bot: {msg}")
 
 @sio.event
 def error(data):

@@ -1,6 +1,8 @@
-from app import db
+from flask_sqlalchemy import SQLAlchemy
 
-# Este módulo simplemente expone la instancia de db para ser importada
+# Instancia única de SQLAlchemy para toda la app
+db = SQLAlchemy()
+
 __all__ = ["db"]
 
 

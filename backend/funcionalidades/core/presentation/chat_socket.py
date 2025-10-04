@@ -1,4 +1,4 @@
-from flask import request
+from flask import request, current_app
 
 from funcionalidades.core.infraestructura.socketio import socketio
 from funcionalidades.core.infraestructura.chat_gateway import ChatGateway
@@ -20,13 +20,13 @@ def on_ask(data):
     if not message:
         socketio.emit('answer', {'message': 'Mensaje vacío'})
         return
-    # Log user message
-    db.session.add(ChatMessageModel(user_id=None, role='user', content=message))
-    db.session.commit()
-    answer = gateway.answer(message)
-    # Log assistant message
-    db.session.add(ChatMessageModel(user_id=None, role='assistant', content=answer))
-    db.session.commit()
+    # Asegurar contexto de aplicación para operaciones con SQLAlchemy
+    with current_app.app_context():
+        db.session.add(ChatMessageModel(user_id=None, role='user', content=message))
+        db.session.commit()
+        answer = gateway.answer(message)
+        db.session.add(ChatMessageModel(user_id=None, role='assistant', content=answer))
+        db.session.commit()
     socketio.emit('answer', {'message': answer})
 
 

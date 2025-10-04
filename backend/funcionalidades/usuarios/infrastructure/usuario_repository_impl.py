@@ -56,4 +56,8 @@ class UsuarioRepositoryImpl(UsuarioRepository):
         m = UsuarioModel.query.filter_by(username=username).first()
         return _to_entity(m) if m else None
 
+    def get_by_email(self, email: str) -> Optional[Usuario]:
+        m = UsuarioModel.query.filter_by(email=email).first()
+        return _to_entity(m) if m else None
+
 

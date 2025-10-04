@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin RAG - Subida de Documentos</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        h1 { margin: 0 0 10px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; }
+        input[type="file"] { margin-top: 8px; }
+        button { margin-top: 12px; padding: 10px 16px; background: #007bff; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }
+        button:hover { background: #005ec2; }
+        .ok { color: #0a7a25; }
+        .err { color: #a50000; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; }
+        .muted { color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Panel Admin RAG</h1>
+        <p class="muted">Autentícate como administrador y sube documentos para alimentar el contexto del chatbot.</p>
+    </div>
+
+    <div class="row">
+        <div class="card">
+            <h2>1) Login admin</h2>
+            <label>Usuario</label>
+            <input id="username" type="text" placeholder="admin" />
+            <label>Contraseña</label>
+            <input id="password" type="password" placeholder="********" />
+            <button id="btnLogin">Iniciar sesión</button>
+            <p id="loginStatus" class="mono"></p>
+            <p class="muted">El token se guardará temporalmente en memoria de esta página.</p>
+        </div>
+
+        <div class="card">
+            <h2>2) Subir documento</h2>
+            <label>Archivo (PDF, DOCX, TXT)</label>
+            <input id="fileInput" type="file" />
+            <button id="btnUpload" disabled>Subir</button>
+            <p id="uploadStatus" class="mono"></p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>3) Ingestar texto directo</h2>
+        <label>Título</label>
+        <input id="titulo" type="text" placeholder="Políticas de envíos" />
+        <label>Contenido</label>
+        <textarea id="contenido" rows="6" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;" placeholder="Pega aquí el texto a ingestar..."></textarea>
+        <button id="btnIngest">Ingestar texto</button>
+        <p id="ingestStatus" class="mono"></p>
+    </div>
+
+    <script>
+        let token = null;
+
+        function setStatus(el, msg, ok = true) {
+            el.className = ok ? 'mono ok' : 'mono err';
+            el.textContent = msg;
+        }
+
+        document.getElementById('btnLogin').addEventListener('click', async () => {
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+            const status = document.getElementById('loginStatus');
+            setStatus(status, 'Autenticando...', true);
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Login fallido');
+                token = data.access_token;
+                setStatus(status, 'Login OK');
+                document.getElementById('btnUpload').disabled = false;
+                setStatus(document.getElementById('uploadStatus'), 'Listo para subir');
+                setStatus(document.getElementById('ingestStatus'), 'Listo para ingestar');
+            } catch (e) {
+                setStatus(status, 'Error: ' + e.message, false);
+            }
+        });
+
+        document.getElementById('btnUpload').addEventListener('click', async () => {
+            const f = document.getElementById('fileInput').files[0];
+            const status = document.getElementById('uploadStatus');
+            if (!token) return setStatus(status, 'Debes iniciar sesión primero', false);
+            if (!f) return setStatus(status, 'Selecciona un archivo', false);
+            setStatus(status, 'Subiendo...', true);
+            try {
+                const form = new FormData();
+                form.append('file', f);
+                const res = await fetch('/api/rag/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: form
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Error al subir');
+                setStatus(status, 'OK: ' + JSON.stringify(data));
+            } catch (e) {
+                setStatus(status, 'Error: ' + e.message, false);
+            }
+        });
+
+        document.getElementById('btnIngest').addEventListener('click', async () => {
+            const titulo = document.getElementById('titulo').value.trim();
+            const contenido = document.getElementById('contenido').value.trim();
+            const status = document.getElementById('ingestStatus');
+            if (!token) return setStatus(status, 'Debes iniciar sesión primero', false);
+            if (!titulo || !contenido) return setStatus(status, 'Título y contenido son requeridos', false);
+            setStatus(status, 'Ingestando...', true);
+            try {
+                const res = await fetch('/api/rag/documentos', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ titulo, contenido })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.message || 'Error al ingestar');
+                setStatus(status, 'OK: ' + JSON.stringify(data));
+            } catch (e) {
+                setStatus(status, 'Error: ' + e.message, false);
+            }
+        });
+    </script>
+</body>
+</html>
+
+

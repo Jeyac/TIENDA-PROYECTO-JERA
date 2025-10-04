@@ -15,20 +15,29 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.post('/login')
 def login():
     data = request.get_json(silent=True) or {}
-    username = data.get('username')
+    username_or_email = data.get('username_or_email')
     password = data.get('password')
 
-    if not username or not password:
-        return jsonify({'message': 'Credenciales inválidas'}), 400
+    if not username_or_email or not password:
+        return jsonify({'error': 'Credenciales inválidas'}), 400
 
     repo = UsuarioRepositoryImpl()
     try:
-        user = AutenticarUsuarioUseCase(repo).ejecutar(username, password)
+        user = AutenticarUsuarioUseCase(repo).ejecutar(username_or_email, password)
         access = create_access_token(subject=user.username, role=user.rol)
         refresh = create_refresh_token(subject=user.username)
-        return jsonify({'access_token': access, 'refresh_token': refresh, 'rol': user.rol})
+        return jsonify({
+            'access_token': access, 
+            'refresh_token': refresh, 
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'rol': user.rol
+            }
+        })
     except (BadRequestError, NotFoundError) as exc:
-        return jsonify({'message': str(exc)}), 401
+        return jsonify({'error': str(exc)}), 401
 
 
 @auth_bp.post('/refresh')
@@ -53,29 +62,45 @@ def register():
     username = data.get('username')
     email = data.get('email')
     password = data.get('password')
-    rol = data.get('rol', 'cliente')
+    confirm_password = data.get('confirm_password')
+    
     if not username or not email or not password:
-        return jsonify({'message': 'Datos incompletos'}), 400
+        return jsonify({'error': 'Datos incompletos'}), 400
+    
+    if password != confirm_password:
+        return jsonify({'error': 'Las contraseñas no coinciden'}), 400
+    
+    if len(password) < 8:
+        return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+    
     repo = UsuarioRepositoryImpl()
     try:
-        user = RegistrarUsuarioUseCase(repo).ejecutar(username, email, password, rol)
-        return jsonify({'id': user.id, 'username': user.username, 'email': user.email, 'rol': user.rol}), 201
+        user = RegistrarUsuarioUseCase(repo).ejecutar(username, email, password, 'cliente')
+        return jsonify({
+            'message': 'Usuario registrado exitosamente',
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'rol': user.rol
+            }
+        }), 201
     except BadRequestError as exc:
-        return jsonify({'message': str(exc)}), 400
+        return jsonify({'error': str(exc)}), 400
 
 
-@auth_bp.post('/reset_password')
+@auth_bp.post('/reset-password')
 def reset_password():
     data = request.get_json(silent=True) or {}
-    username = data.get('username')
-    new_password = data.get('new_password')
-    if not username or not new_password:
-        return jsonify({'message': 'Datos incompletos'}), 400
-    repo = UsuarioRepositoryImpl()
-    try:
-        user = RestablecerPasswordUseCase(repo).ejecutar(username, new_password)
-        return jsonify({'id': user.id, 'username': user.username})
-    except (BadRequestError, NotFoundError) as exc:
-        return jsonify({'message': str(exc)}), 400
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'error': 'Email requerido'}), 400
+    
+    # Por ahora solo simulamos el envío del correo
+    # En producción aquí se enviaría un correo real con un enlace de reset
+    return jsonify({
+        'message': f'Se ha enviado un enlace de recuperación a {email}. Revisa tu bandeja de entrada.'
+    }), 200
 
 

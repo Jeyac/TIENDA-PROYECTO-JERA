@@ -6,8 +6,8 @@ from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 from funcionalidades.core.infraestructura.socketio import socketio
 
-# Inicializaciones globales para ser importadas en otros módulos
-db = SQLAlchemy()
+# Importar la instancia compartida de db
+from funcionalidades.core.infraestructura.database import db
 migrate = Migrate()
 
 
@@ -70,6 +70,41 @@ def create_app() -> Flask:
     def chat_page():
         from flask import send_from_directory
         return send_from_directory('static', 'chat.html')
+
+    @app.get('/admin/rag')
+    def admin_rag_page():
+        from flask import send_from_directory
+        return send_from_directory('static', 'admin_rag.html')
+
+    # Crear tablas y (opcional) seed inicial RAG si no hay documentos
+    with app.app_context():
+        db.create_all()
+        # Controlar el seeding vía variable de entorno SEED_RAG=true
+        if os.getenv('SEED_RAG', 'false').lower() == 'true':
+            try:
+                from funcionalidades.rag.infrastructure.documento_model import DocumentoModel  # noqa: F401
+                if DocumentoModel.query.count() == 0:
+                    from funcionalidades.rag.infrastructure.documento_repository_impl import DocumentoRepositoryImpl
+                    from funcionalidades.rag.infrastructure.embedder_openai import OpenAIEmbedder
+                    from funcionalidades.rag.application.use_cases.ingestar_documento_use_case import IngestarDocumentoUseCase
+
+                    contenido_base = (
+                        "Información de la tienda:\n"
+                        "- Pedidos: Regístrate, añade productos al carrito y confirma el pago.\n"
+                        "- Envíos: 2-5 días hábiles, seguimiento por correo.\n"
+                        "- Devoluciones: 30 días, producto en buen estado con ticket.\n"
+                        "- Pagos: Tarjeta, PayPal y transferencia.\n"
+                        "- Soporte: soporte@example.com, Lun-Vie 9:00-18:00.\n"
+                    )
+                    repo = DocumentoRepositoryImpl()
+                    embedder = OpenAIEmbedder()
+                    IngestarDocumentoUseCase(repo, embedder).ejecutar(
+                        titulo="Guía de la tienda",
+                        contenido=contenido_base,
+                    )
+            except Exception as e:
+                # No interrumpir el arranque por fallo de seeding
+                print(f"Warning: RAG seeding failed: {e}")
 
     return app
 

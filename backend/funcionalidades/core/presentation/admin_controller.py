@@ -29,3 +29,22 @@ def kpis():
     })
 
 
+@admin_bp.get('/pedidos')
+@jwt_required(roles={'administrador'})
+def get_pedidos():
+    """Obtener todos los pedidos para el admin"""
+    pedidos = PedidoModel.query.all()
+    return jsonify([{
+        'id': p.id,
+        'usuario_id': p.usuario_id,
+        'total': p.total,
+        'created_at': p.created_at.isoformat() if p.created_at else None,
+        'datos_facturacion': p.datos_facturacion,
+        'items': [{
+            'producto_id': item.producto_id,
+            'cantidad': item.cantidad,
+            'precio_unitario': item.precio_unitario
+        } for item in p.items]
+    } for p in pedidos])
+
+

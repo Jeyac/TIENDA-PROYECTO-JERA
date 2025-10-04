@@ -8,12 +8,28 @@ class AutenticarUsuarioUseCase:
     def __init__(self, repo: UsuarioRepository):
         self.repo = repo
 
-    def ejecutar(self, username: str, password: str) -> Usuario:
-        usuario = self.repo.get_by_username(username)
+    def ejecutar(self, username_or_email: str, password: str) -> Usuario:
+        print(f"DEBUG: Autenticando usuario: {username_or_email}")
+        
+        # Intentar buscar por username primero
+        usuario = self.repo.get_by_username(username_or_email)
+        print(f"DEBUG: Usuario encontrado por username: {usuario}")
+        
+        # Si no se encuentra por username, intentar por email
         if not usuario:
+            usuario = self.repo.get_by_email(username_or_email)
+            print(f"DEBUG: Usuario encontrado por email: {usuario}")
+        
+        if not usuario:
+            print("DEBUG: Usuario no encontrado")
             raise NotFoundError('Usuario no encontrado')
+        
+        print(f"DEBUG: Verificando contraseña...")
         if not verify_password(password, usuario.password_hash):
+            print("DEBUG: Contraseña incorrecta")
             raise BadRequestError('Credenciales inválidas')
+        
+        print("DEBUG: Autenticación exitosa")
         return usuario
 
 

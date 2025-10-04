@@ -8,8 +8,9 @@ class OpenAIService:
     def __init__(self):
         api_key = os.getenv('OPENAI_API_KEY')
         try:
-            # No fallamos si no hay API key; el caller decidirá
-            self.client = OpenAI(api_key=api_key) if api_key else None
+            # Usar constructor por defecto; toma la key desde el entorno.
+            # Evita problemas con parámetros no soportados (p.ej. proxies).
+            self.client = OpenAI() if api_key else None
         except Exception as e:
             print(f"Warning: OpenAI client initialization failed: {e}")
             self.client = None

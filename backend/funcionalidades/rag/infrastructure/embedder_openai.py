@@ -8,7 +8,8 @@ class OpenAIEmbedder:
     def __init__(self, model: str = 'text-embedding-3-small'):
         api_key = os.getenv('OPENAI_API_KEY')
         try:
-            self.client = OpenAI(api_key=api_key) if api_key else None
+            # Usar constructor por defecto; toma la key del entorno
+            self.client = OpenAI() if api_key else None
         except Exception as e:
             print(f"Warning: OpenAI client initialization failed: {e}")
             self.client = None
