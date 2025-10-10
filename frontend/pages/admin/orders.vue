@@ -6,18 +6,67 @@
         <div class="col-12">
           <div class="d-flex justify-content-between align-items-center">
             <div>
-              <h1 class="display-6 fw-bold mb-2">
-                <i class="bi bi-bag me-2"></i>Historial de Pedidos
+              <h1 class="display-6 fw-bold mb-2 text-primary">
+                <i class="bi bi-bag-check me-2"></i>Gestión de pedidos
               </h1>
-              <p class="text-muted mb-0">Gestiona todos los pedidos de los usuarios</p>
+              <p class="text-muted mb-0">Administra y supervisa todos los pedidos del sistema</p>
             </div>
             <div class="d-flex gap-2">
-              <button class="btn btn-outline-secondary" @click="loadOrders">
-                <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
-              </button>
-              <button class="btn btn-outline-success" @click="exportOrders">
-                <i class="bi bi-download me-2"></i>Exportar
-              </button>
+              <BaseButton variant="outline-primary" @click="loadOrders" :disabled="loading">
+                <i class="bi bi-arrow-clockwise me-2" :class="{ 'spinner-border spinner-border-sm': loading }"></i>
+                {{ loading ? 'Cargando...' : 'Actualizar' }}
+              </BaseButton>
+              <BaseButton variant="success" @click="exportOrders">
+                <i class="bi bi-file-earmark-excel me-2"></i>Exportar excel
+              </BaseButton>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+              <div class="text-primary mb-2">
+                <i class="bi bi-bag" style="font-size: 2rem;"></i>
+              </div>
+              <h3 class="fw-bold mb-1">{{ totalOrders }}</h3>
+              <p class="text-muted mb-0">Total pedidos</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+              <div class="text-warning mb-2">
+                <i class="bi bi-clock" style="font-size: 2rem;"></i>
+              </div>
+              <h3 class="fw-bold mb-1">{{ pendingOrders }}</h3>
+              <p class="text-muted mb-0">Pendientes</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+              <div class="text-success mb-2">
+                <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
+              </div>
+              <h3 class="fw-bold mb-1">{{ completedOrders }}</h3>
+              <p class="text-muted mb-0">Completados</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+              <div class="text-info mb-2">
+                <i class="bi bi-currency-dollar" style="font-size: 2rem;"></i>
+              </div>
+              <h3 class="fw-bold mb-1">Q{{ totalRevenue.toFixed(2) }}</h3>
+              <p class="text-muted mb-0">Ingresos totales</p>
             </div>
           </div>
         </div>
@@ -27,31 +76,49 @@
       <div class="row mb-4">
         <div class="col-12">
           <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light border-0">
+              <h6 class="mb-0 fw-semibold">
+                <i class="bi bi-funnel me-2"></i>Filtros de búsqueda
+              </h6>
+            </div>
             <div class="card-body">
-              <div class="row g-3 align-items-end">
+              <div class="row g-3">
                 <div class="col-md-3">
-                  <label for="userFilter" class="form-label">Filtrar por Usuario</label>
+                  <label class="form-label fw-semibold">Buscar</label>
+                  <div class="input-group">
+                    <span class="input-group-text">
+                      <i class="bi bi-search"></i>
+                    </span>
+                    <input
+                      v-model="searchText"
+                      type="text"
+                      class="form-control"
+                      placeholder="Usuario, email o estado..."
+                      @input="filterOrders"
+                    >
+                  </div>
+                </div>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold">Usuario</label>
                   <select
                     v-model="selectedUser"
                     class="form-select"
-                    id="userFilter"
                     @change="filterOrders"
                   >
-                    <option value="">Todos los usuarios</option>
+                    <option value="">Todos</option>
                     <option v-for="user in users" :key="user.id" :value="user.id">
-                      {{ user.username }} ({{ user.email }})
+                      {{ user.username }}
                     </option>
                   </select>
                 </div>
-                <div class="col-md-3">
-                  <label for="statusFilter" class="form-label">Estado del Pedido</label>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold">Estado</label>
                   <select
                     v-model="selectedStatus"
                     class="form-select"
-                    id="statusFilter"
                     @change="filterOrders"
                   >
-                    <option value="">Todos los estados</option>
+                    <option value="">Todos</option>
                     <option value="pendiente">Pendiente</option>
                     <option value="procesando">Procesando</option>
                     <option value="enviado">Enviado</option>
@@ -59,32 +126,28 @@
                     <option value="cancelado">Cancelado</option>
                   </select>
                 </div>
-                <div class="col-md-3">
-                  <label for="dateFrom" class="form-label">Desde</label>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold">Desde</label>
                   <input
                     v-model="dateFrom"
                     type="date"
                     class="form-control"
-                    id="dateFrom"
                     @change="filterOrders"
                   >
                 </div>
-                <div class="col-md-3">
-                  <label for="dateTo" class="form-label">Hasta</label>
+                <div class="col-md-2">
+                  <label class="form-label fw-semibold">Hasta</label>
                   <input
                     v-model="dateTo"
                     type="date"
                     class="form-control"
-                    id="dateTo"
                     @change="filterOrders"
                   >
                 </div>
-              </div>
-              <div class="row mt-3">
-                <div class="col-12">
-                  <button class="btn btn-outline-secondary" @click="clearFilters">
-                    <i class="bi bi-x-circle me-2"></i>Limpiar Filtros
-                  </button>
+                <div class="col-md-1 d-flex align-items-end">
+                  <BaseButton variant="outline-secondary" @click="clearFilters" class="w-100">
+                    <i class="bi bi-x-circle"></i>
+                  </BaseButton>
                 </div>
               </div>
             </div>
@@ -94,18 +157,19 @@
 
       <!-- Orders Table -->
       <div class="card border-0 shadow-sm">
-        <div class="card-header bg-white border-bottom">
+        <div class="card-header bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
           <div class="row align-items-center">
             <div class="col-md-6">
-              <h5 class="card-title mb-0">
-                <i class="bi bi-list-ul me-2"></i>Pedidos
-                <span class="badge bg-primary ms-2">{{ filteredOrders.length }}</span>
+              <h5 class="card-title mb-0 text-white">
+                <i class="bi bi-list-ul me-2"></i>Lista de pedidos
+                <span class="badge bg-light text-dark ms-2">{{ filteredOrders.length }}</span>
               </h5>
             </div>
             <div class="col-md-6 text-end">
-              <small class="text-muted">
-                Total: Q {{ totalAmount.toFixed(2) }}
-              </small>
+              <div class="text-white">
+                <small class="opacity-75">Total filtrado:</small>
+                <strong class="fs-5">Q {{ totalAmount.toFixed(2) }}</strong>
+              </div>
             </div>
           </div>
         </div>
@@ -117,67 +181,71 @@
             <p class="text-muted mt-3">Cargando pedidos...</p>
           </div>
           
-          <div v-else-if="filteredOrders.length === 0" class="text-center py-5">
-            <i class="bi bi-bag text-muted" style="font-size: 4rem;"></i>
-            <h3 class="text-muted mt-3">No hay pedidos</h3>
-            <p class="text-muted">No se encontraron pedidos con los filtros aplicados.</p>
-          </div>
+          <EmptyState v-else-if="filteredOrders.length === 0" icon="bi bi-bag" title="No hay pedidos" subtitle="No se encontraron pedidos con los filtros aplicados." />
           
-          <div v-else class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>ID</th>
-                  <th>Usuario</th>
-                  <th>Productos</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                  <th>Fecha</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="order in filteredOrders" :key="order.id">
-                  <td>{{ order.id }}</td>
-                  <td>
-                    <div class="d-flex align-items-center">
-                      <div class="avatar bg-primary text-white rounded-circle me-2">
-                        {{ order.usuario_nombre?.charAt(0).toUpperCase() || 'U' }}
-                      </div>
-                      <div>
-                        <strong>{{ order.usuario_nombre || 'Usuario' }}</strong>
-                        <br>
-                        <small class="text-muted">{{ order.usuario_email || 'Sin email' }}</small>
-                      </div>
+          <div v-else>
+            <DataTable
+              :items="filteredOrders"
+              :columns="[
+                { key: 'id', label: 'ID' },
+                { key: 'usuario', label: 'Usuario' },
+                { key: 'productos', label: 'Productos' },
+                { key: 'total', label: 'Total' },
+                { key: 'estado', label: 'Estado' },
+                { key: 'fecha', label: 'Fecha' },
+                { key: 'acciones', label: 'Acciones' }
+              ]"
+              empty-icon="bi bi-bag"
+              empty-title="No hay pedidos"
+              empty-subtitle="No se encontraron pedidos con los filtros aplicados."
+            >
+              <template #row="{ row: order }">
+                <td>
+                  <div class="fw-bold text-primary">#{{ order.id }}</div>
+                </td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <AvatarCircle :text="order.usuario_nombre || 'U'" size="sm" class="me-3" />
+                    <div>
+                      <div class="fw-semibold">{{ order.usuario_nombre || 'Usuario' }}</div>
+                      <small class="text-muted">{{ order.usuario_email || 'Sin email' }}</small>
                     </div>
-                  </td>
-                  <td>
-                    <span class="badge bg-info">{{ order.productos_count || 0 }} productos</span>
-                  </td>
-                  <td>
-                    <strong class="text-primary">Q {{ Number(order.total).toFixed(2) }}</strong>
-                  </td>
-                  <td>
-                    <span class="badge" :class="getStatusBadgeClass(order.estado)">
-                      {{ order.estado || 'Pendiente' }}
+                  </div>
+                </td>
+                <td>
+                  <div class="text-center">
+                    <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
+                      <i class="bi bi-box me-1"></i>{{ getProductCount(order) }} productos
                     </span>
-                  </td>
-                  <td>
-                    <small>{{ formatDate(order.fecha_creacion) }}</small>
-                  </td>
-                  <td>
-                    <div class="btn-group" role="group">
-                      <button class="btn btn-outline-primary btn-sm" @click="viewOrder(order)">
-                        <i class="bi bi-eye"></i>
-                      </button>
-                      <button class="btn btn-outline-success btn-sm" @click="updateStatus(order)">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                </td>
+                <td>
+                  <div class="text-end">
+                    <div class="fw-bold text-success fs-6">Q {{ Number(order.total).toFixed(2) }}</div>
+                  </div>
+                </td>
+                <td>
+                  <div class="text-center">
+                    <OrderStatusBadge :status="order.estado || 'pendiente'" :text="order.estado || 'pendiente'" />
+                  </div>
+                </td>
+                <td>
+                  <div class="text-center">
+                    <small class="text-muted">{{ formatDate(order.fecha_creacion) }}</small>
+                  </div>
+                </td>
+                <td>
+                  <div class="d-flex justify-content-center gap-1">
+                    <BaseButton variant="outline-primary" class="btn-sm" @click="viewOrder(order)" title="Ver detalles">
+                      <i class="bi bi-eye"></i>
+                    </BaseButton>
+                    <BaseButton variant="outline-success" class="btn-sm" @click="updateStatus(order)" title="Cambiar estado">
+                      <i class="bi bi-pencil"></i>
+                    </BaseButton>
+                  </div>
+                </td>
+              </template>
+            </DataTable>
           </div>
         </div>
       </div>
@@ -188,20 +256,20 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">
-                <i class="bi bi-bag me-2"></i>Detalles del Pedido #{{ selectedOrder?.id }}
+                <i class="bi bi-bag me-2"></i>Detalles del pedido #{{ selectedOrder?.id }}
               </h5>
               <button type="button" class="btn-close" @click="showDetailsModal = false"></button>
             </div>
             <div class="modal-body">
               <div v-if="selectedOrder" class="order-details">
                 <div class="row mb-3">
-                  <div class="col-md-6">
-                    <h6>Información del Usuario</h6>
+                  <div class="col-md-4">
+                    <h6><i class="bi bi-person me-2"></i>Información del usuario</h6>
                     <p class="mb-1"><strong>Nombre:</strong> {{ selectedOrder.usuario_nombre }}</p>
                     <p class="mb-1"><strong>Email:</strong> {{ selectedOrder.usuario_email }}</p>
                   </div>
-                  <div class="col-md-6">
-                    <h6>Información del Pedido</h6>
+                  <div class="col-md-4">
+                    <h6><i class="bi bi-bag me-2"></i>Información del pedido</h6>
                     <p class="mb-1"><strong>Estado:</strong> 
                       <span class="badge" :class="getStatusBadgeClass(selectedOrder.estado)">
                         {{ selectedOrder.estado || 'Pendiente' }}
@@ -210,37 +278,71 @@
                     <p class="mb-1"><strong>Fecha:</strong> {{ formatDate(selectedOrder.fecha_creacion) }}</p>
                     <p class="mb-1"><strong>Total:</strong> Q {{ Number(selectedOrder.total).toFixed(2) }}</p>
                   </div>
+                  <div class="col-md-4">
+                    <h6><i class="bi bi-geo-alt me-2"></i>Información de facturación</h6>
+                    <div v-if="selectedOrder.datos_facturacion && Object.keys(selectedOrder.datos_facturacion).length > 0">
+                      <p v-if="selectedOrder.datos_facturacion.nombre" class="mb-1"><strong>Nombre:</strong> {{ selectedOrder.datos_facturacion.nombre }}</p>
+                      <p v-if="selectedOrder.datos_facturacion.email" class="mb-1"><strong>Email:</strong> {{ selectedOrder.datos_facturacion.email }}</p>
+                      <p v-if="selectedOrder.datos_facturacion.telefono" class="mb-1"><strong>Teléfono:</strong> {{ selectedOrder.datos_facturacion.telefono }}</p>
+                      <p v-if="selectedOrder.datos_facturacion.direccion" class="mb-1"><strong>Dirección:</strong> {{ selectedOrder.datos_facturacion.direccion }}</p>
+                      <p v-if="selectedOrder.datos_facturacion.ciudad" class="mb-1"><strong>Ciudad:</strong> {{ selectedOrder.datos_facturacion.ciudad }}</p>
+                    </div>
+                    <div v-else class="text-muted">
+                      <small>No hay información de facturación</small>
+                    </div>
+                  </div>
                 </div>
                 
                 <div v-if="selectedOrder.productos && selectedOrder.productos.length > 0">
-                  <h6>Productos</h6>
+                  <h6><i class="bi bi-box me-2"></i>Productos del Pedido</h6>
                   <div class="table-responsive">
-                    <table class="table table-sm">
-                      <thead>
+                    <table class="table table-sm table-hover">
+                      <thead class="table-light">
                         <tr>
                           <th>Producto</th>
-                          <th>Cantidad</th>
-                          <th>Precio</th>
-                          <th>Subtotal</th>
+                          <th class="text-center">Cantidad</th>
+                          <th class="text-end">Precio Unit.</th>
+                          <th class="text-end">Subtotal</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr v-for="item in selectedOrder.productos" :key="item.id">
-                          <td>{{ item.titulo }}</td>
-                          <td>{{ item.cantidad }}</td>
-                          <td>Q {{ Number(item.precio).toFixed(2) }}</td>
-                          <td>Q {{ Number(item.precio * item.cantidad).toFixed(2) }}</td>
+                          <td>
+                            <div>
+                              <div class="fw-semibold">{{ item.titulo || `Producto ${item.producto_id}` }}</div>
+                              <small v-if="item.descripcion" class="text-muted">{{ item.descripcion }}</small>
+                              <small v-else class="text-muted">ID: {{ item.producto_id }}</small>
+                            </div>
+                          </td>
+                          <td class="text-center">
+                            <span class="badge bg-primary">{{ item.cantidad }}</span>
+                          </td>
+                          <td class="text-end">
+                            <span class="fw-semibold">Q {{ Number(item.precio_unitario || item.precio || 0).toFixed(2) }}</span>
+                          </td>
+                          <td class="text-end">
+                            <span class="fw-bold text-success">Q {{ Number((item.precio_unitario || item.precio || 0) * item.cantidad).toFixed(2) }}</span>
+                          </td>
                         </tr>
                       </tbody>
+                      <tfoot class="table-light">
+                        <tr>
+                          <th colspan="3" class="text-end">Total del Pedido:</th>
+                          <th class="text-end text-success">Q {{ Number(selectedOrder.total).toFixed(2) }}</th>
+                        </tr>
+                      </tfoot>
                     </table>
                   </div>
+                </div>
+                <div v-else class="text-center text-muted py-3">
+                  <i class="bi bi-box me-2"></i>No hay productos en este pedido
                 </div>
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showDetailsModal = false">
+              <BaseButton variant="secondary" @click="showDetailsModal = false">
                 Cerrar
-              </button>
+              </BaseButton>
             </div>
           </div>
         </div>
@@ -253,13 +355,13 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">
-                <i class="bi bi-pencil me-2"></i>Actualizar Estado
+                <i class="bi bi-pencil me-2"></i>Actualizar estado
               </h5>
               <button type="button" class="btn-close" @click="showStatusModal = false"></button>
             </div>
             <div class="modal-body">
               <div class="mb-3">
-                <label for="newStatus" class="form-label">Nuevo Estado</label>
+                <label for="newStatus" class="form-label">Nuevo estado</label>
                 <select v-model="newStatus" class="form-select" id="newStatus">
                   <option value="pendiente">Pendiente</option>
                   <option value="procesando">Procesando</option>
@@ -270,13 +372,12 @@
               </div>
             </div>
             <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showStatusModal = false">
+              <BaseButton variant="secondary" @click="showStatusModal = false">
                 Cancelar
-              </button>
-              <button type="button" class="btn btn-primary" @click="confirmStatusUpdate" :disabled="updating">
-                <span v-if="updating" class="spinner-border spinner-border-sm me-2"></span>
+              </BaseButton>
+              <BaseButton variant="primary" @click="confirmStatusUpdate" :loading="updating" :disabled="updating">
                 {{ updating ? 'Actualizando...' : 'Actualizar' }}
-              </button>
+              </BaseButton>
             </div>
           </div>
         </div>
@@ -293,7 +394,7 @@ import { useAuthStore } from '../../stores/auth'
 
 // Middleware para proteger la ruta
 definePageMeta({
-  middleware: 'admin',
+  middleware: ['auth', 'admin'],
   layout: 'admin'
 })
 
@@ -312,6 +413,7 @@ const selectedUser = ref('')
 const selectedStatus = ref('')
 const dateFrom = ref('')
 const dateTo = ref('')
+const searchText = ref('')
 
 // Modal states
 const showDetailsModal = ref(false)
@@ -342,12 +444,28 @@ const filteredOrders = computed(() => {
     filtered = filtered.filter(order => new Date(order.fecha_creacion) <= toDate)
   }
 
+  if (searchText.value) {
+    const q = searchText.value.toLowerCase()
+    filtered = filtered.filter(order =>
+      (order.usuario_nombre && order.usuario_nombre.toLowerCase().includes(q)) ||
+      (order.usuario_email && order.usuario_email.toLowerCase().includes(q)) ||
+      (order.estado && order.estado.toLowerCase().includes(q)) ||
+      String(order.id).includes(q)
+    )
+  }
+
   return filtered
 })
 
 const totalAmount = computed(() => {
   return filteredOrders.value.reduce((sum, order) => sum + Number(order.total), 0)
 })
+
+// Estadísticas para las tarjetas
+const totalOrders = computed(() => orders.value.length)
+const pendingOrders = computed(() => orders.value.filter(order => order.estado === 'pendiente').length)
+const completedOrders = computed(() => orders.value.filter(order => order.estado === 'entregado').length)
+const totalRevenue = computed(() => orders.value.reduce((sum, order) => sum + Number(order.total), 0))
 
 // Methods
 const loadOrders = async () => {
@@ -362,7 +480,9 @@ const loadOrders = async () => {
     })
     
     if (res.ok) {
-      orders.value = await res.json()
+      const data = await res.json()
+      console.log('Orders loaded from backend:', data)
+      orders.value = data
     } else if (res.status === 401) {
       await auth.logout()
     } else {
@@ -403,6 +523,8 @@ const clearFilters = () => {
 }
 
 const viewOrder = (order: any) => {
+  console.log('Order data:', order)
+  console.log('Order productos:', order.productos)
   selectedOrder.value = order
   showDetailsModal.value = true
 }
@@ -478,8 +600,18 @@ const getStatusBadgeClass = (status: string) => {
   return statusClasses[status] || 'bg-secondary'
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString()
+// Usar función global de formateo
+const { $formatDate: formatDate } = useNuxtApp()
+
+// Función para calcular cantidad de productos
+const getProductCount = (order: any) => {
+  if (order.productos_count) {
+    return order.productos_count
+  }
+  if (order.productos && Array.isArray(order.productos)) {
+    return order.productos.reduce((total: number, item: any) => total + (item.cantidad || 0), 0)
+  }
+  return 0
 }
 
 // Lifecycle
@@ -553,3 +685,17 @@ onMounted(async () => {
   border-bottom-color: var(--bs-border-color);
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

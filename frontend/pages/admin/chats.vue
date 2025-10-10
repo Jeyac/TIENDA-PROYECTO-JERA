@@ -7,17 +7,17 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h1 class="display-6 fw-bold mb-2">
-                <i class="bi bi-chat-dots me-2"></i>Historial de Chats
+                <i class="bi bi-chat-dots me-2"></i>Historial de chats
               </h1>
               <p class="text-muted mb-0">Revisa las conversaciones con el chatbot</p>
             </div>
             <div class="d-flex gap-2">
-              <button class="btn btn-outline-secondary" @click="loadChats">
+              <BaseButton variant="outline-secondary" @click="loadChats">
                 <i class="bi bi-arrow-clockwise me-2"></i>Actualizar
-              </button>
-              <button class="btn btn-outline-danger" @click="clearAllChats" :disabled="deleting">
-                <i class="bi bi-trash me-2"></i>Limpiar Todo
-              </button>
+              </BaseButton>
+              <BaseButton variant="outline-danger" @click="clearAllChats" :disabled="deleting">
+                <i class="bi bi-trash me-2"></i>Limpiar todos los chats
+              </BaseButton>
             </div>
           </div>
         </div>
@@ -30,7 +30,7 @@
             <div class="card-body">
               <div class="row g-3 align-items-end">
                 <div class="col-md-4">
-                  <label for="userFilter" class="form-label">Filtrar por Usuario</label>
+                  <label for="userFilter" class="form-label">Filtrar por usuario</label>
                   <select
                     v-model="selectedUser"
                     class="form-select"
@@ -44,7 +44,7 @@
                   </select>
                 </div>
                 <div class="col-md-4">
-                  <label for="dateFilter" class="form-label">Filtrar por Fecha</label>
+                  <label for="dateFilter" class="form-label">Filtrar por fecha</label>
                   <input
                     v-model="selectedDate"
                     type="date"
@@ -54,9 +54,9 @@
                   >
                 </div>
                 <div class="col-md-4">
-                  <button class="btn btn-outline-secondary w-100" @click="clearFilters">
-                    <i class="bi bi-x-circle me-2"></i>Limpiar Filtros
-                  </button>
+                  <BaseButton variant="outline-secondary" class="w-100" @click="clearFilters">
+                    <i class="bi bi-x-circle me-2"></i>Limpiar filtros
+                  </BaseButton>
                 </div>
               </div>
             </div>
@@ -89,23 +89,23 @@
             <p class="text-muted mt-3">Cargando chats...</p>
           </div>
           
-          <div v-else-if="filteredChats.length === 0" class="text-center py-5">
-            <i class="bi bi-chat text-muted" style="font-size: 4rem;"></i>
-            <h3 class="text-muted mt-3">No hay chats</h3>
-            <p class="text-muted">No se encontraron conversaciones con los filtros aplicados.</p>
-          </div>
+          <EmptyState v-else-if="filteredChats.length === 0" icon="bi bi-chat" title="No hay chats" subtitle="No se encontraron conversaciones con los filtros aplicados." />
           
           <div v-else class="chats-list">
             <div v-for="chat in filteredChats" :key="chat.id" class="chat-item">
               <div class="chat-header" @click="toggleChat(chat.id)">
                 <div class="d-flex justify-content-between align-items-center">
                   <div class="d-flex align-items-center">
-                    <div class="avatar bg-primary text-white rounded-circle me-3">
-                      {{ chat.usuario_nombre?.charAt(0).toUpperCase() || 'U' }}
-                    </div>
+                    <AvatarCircle :text="chat.usuario_nombre || 'U'" class="me-3" />
                     <div>
                       <h6 class="mb-1">{{ chat.usuario_nombre || 'Usuario Anónimo' }}</h6>
                       <small class="text-muted">{{ chat.usuario_email || 'Sin email' }}</small>
+                      <div v-if="chat.mensajes && chat.mensajes.length > 0" class="mt-1">
+                        <small class="text-muted">
+                          <strong>Último mensaje:</strong> 
+                          {{ chat.mensajes[chat.mensajes.length - 1].contenido.substring(0, 60) }}{{ chat.mensajes[chat.mensajes.length - 1].contenido.length > 60 ? '...' : '' }}
+                        </small>
+                      </div>
                     </div>
                   </div>
                   <div class="text-end">
@@ -119,24 +119,28 @@
               </div>
               
               <div v-if="expandedChats.includes(chat.id)" class="chat-messages">
-                <div class="messages-container">
-                  <div v-for="message in chat.mensajes" :key="message.id" class="message-item">
-                    <div class="message" :class="{ 'user-message': message.tipo === 'usuario', 'bot-message': message.tipo === 'bot' }">
-                      <div class="message-header">
-                        <strong>{{ message.tipo === 'usuario' ? 'Usuario' : 'Bot' }}</strong>
-                        <small class="text-muted ms-2">{{ formatTime(message.fecha_creacion) }}</small>
+                <div class="messages-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+                  <div v-for="message in chat.mensajes" :key="message.id" class="message-item mb-3">
+                    <div class="message" :class="message.tipo === 'usuario' ? 'user-message' : 'bot-message'">
+                      <div class="message-header d-flex justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center">
+                          <span class="badge me-2" :class="message.tipo === 'usuario' ? 'bg-primary' : 'bg-success'">
+                            {{ message.tipo === 'usuario' ? 'Usuario' : 'Bot' }}
+                          </span>
+                          <small class="text-muted">{{ formatTime(message.fecha_creacion) }}</small>
+                        </div>
                       </div>
-                      <div class="message-content">
-                        {{ message.contenido }}
+                      <div class="message-content p-3 rounded" :class="message.tipo === 'usuario' ? 'bg-primary text-white' : 'bg-white border'">
+                        <div style="white-space: pre-wrap; word-wrap: break-word;">{{ message.contenido }}</div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
                 <div class="chat-actions">
-                  <button class="btn btn-outline-danger btn-sm" @click="deleteChat(chat.id)">
-                    <i class="bi bi-trash me-1"></i>Eliminar Chat
-                  </button>
+                  <BaseButton variant="outline-danger" class="btn-sm" @click="deleteChat(chat.id)">
+                    <i class="bi bi-trash me-1"></i>Eliminar chat
+                  </BaseButton>
                 </div>
               </div>
             </div>
@@ -145,60 +149,26 @@
       </div>
 
       <!-- Delete Confirmation Modal -->
-      <div class="modal fade" :class="{ show: showDeleteModal }" :style="{ display: showDeleteModal ? 'block' : 'none' }" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title text-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
-              </h5>
-              <button type="button" class="btn-close" @click="showDeleteModal = false"></button>
-            </div>
-            <div class="modal-body">
-              <p>¿Estás seguro de que deseas eliminar esta conversación?</p>
-              <p class="text-muted small">Esta acción no se puede deshacer.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">
-                Cancelar
-              </button>
-              <button type="button" class="btn btn-danger" @click="confirmDelete" :disabled="deleting">
-                <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-                {{ deleting ? 'Eliminando...' : 'Eliminar' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="showDeleteModal" class="modal-backdrop fade show"></div>
+      <ConfirmModal
+        v-model="showDeleteModal"
+        title="Confirmar eliminación"
+        message="¿Estás seguro de que deseas eliminar esta conversación? Esta acción no se puede deshacer."
+        confirmText="Eliminar"
+        confirmVariant="Peligro"
+        :loading="deleting"
+        @confirm="confirmDelete"
+      />
 
       <!-- Clear All Confirmation Modal -->
-      <div class="modal fade" :class="{ show: showClearModal }" :style="{ display: showClearModal ? 'block' : 'none' }" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title text-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Limpieza
-              </h5>
-              <button type="button" class="btn-close" @click="showClearModal = false"></button>
-            </div>
-            <div class="modal-body">
-              <p>¿Estás seguro de que deseas eliminar TODOS los chats?</p>
-              <p class="text-danger small">Esta acción eliminará {{ chats.length }} conversaciones y no se puede deshacer.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showClearModal = false">
-                Cancelar
-              </button>
-              <button type="button" class="btn btn-danger" @click="confirmClearAll" :disabled="deleting">
-                <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-                {{ deleting ? 'Eliminando...' : 'Eliminar Todo' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="showClearModal" class="modal-backdrop fade show"></div>
+      <ConfirmModal
+        v-model="showClearModal"
+        title="Confirmar limpieza"
+        :message="`¿Estás seguro de que deseas eliminar TODOS los chats? Esta acción eliminará ${chats.length} conversaciones y no se puede deshacer.`"
+        confirmText="Eliminar todos los chats"
+        confirmVariant="Peligro"
+        :loading="deleting"
+        @confirm="confirmClearAll"
+      />
     </div>
   </div>
 </template>
@@ -210,7 +180,7 @@ import { useAuthStore } from '../../stores/auth'
 
 // Middleware para proteger la ruta
 definePageMeta({
-  middleware: 'admin',
+  middleware: ['auth', 'admin'],
   layout: 'admin'
 })
 
@@ -377,13 +347,8 @@ const confirmClearAll = async () => {
   }
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString()
-}
-
-const formatTime = (dateString: string) => {
-  return new Date(dateString).toLocaleTimeString()
-}
+// Usar funciones globales de formateo
+const { $formatDate: formatDate, $formatTime: formatTime } = useNuxtApp()
 
 // Lifecycle
 onMounted(async () => {

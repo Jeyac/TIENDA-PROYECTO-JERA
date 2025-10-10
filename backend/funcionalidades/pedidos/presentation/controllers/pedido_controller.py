@@ -49,7 +49,7 @@ def listar_pedidos():
         raise AuthorizationError('Falta token Bearer')
     token = auth_header.split(' ', 1)[1]
     payload = decode_token(token)
-    username = payload['sub']
+    username = payload['username']  # Cambiado de 'sub' a 'username'
     user = UsuarioModel.query.filter_by(username=username).first()
     
     if user.rol == 'administrador':
@@ -65,26 +65,127 @@ def listar_pedidos():
         'id': p.id,
         'usuario_id': p.usuario_id,
         'total': p.total,
+        'estado': getattr(p, 'estado', 'pendiente'),
+        'created_at': getattr(p, 'created_at', None),
         'datos_facturacion': p.datos_facturacion,
         'items': [{'producto_id': i.producto_id, 'cantidad': i.cantidad, 'precio_unitario': i.precio_unitario} for i in p.items]
     } for p in items]
     return jsonify(result)
 
 
+@pedidos_bp.get('/mis')
+@jwt_required
+def mis_pedidos():
+    """Endpoint específico para que los clientes vean sus propios pedidos"""
+    try:
+        from funcionalidades.core.infraestructura.auth import decode_token
+        from funcionalidades.core.exceptions.auth_exceptions import AuthorizationError
+        from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+        from funcionalidades.pedidos.infrastructure.pedido_model import PedidoModel
+        
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            raise AuthorizationError('Falta token Bearer')
+        
+        token = auth_header.split(' ', 1)[1]
+        payload = decode_token(token)
+        username = payload['username']
+        
+        user = UsuarioModel.query.filter_by(username=username).first()
+        if not user:
+            return jsonify({'message': 'Usuario no encontrado'}), 404
+        
+        # Obtener pedidos del usuario
+        pedidos = PedidoModel.query.filter_by(usuario_id=user.id).all()
+        
+        result = []
+        for pedido in pedidos:
+            # Información básica del pedido
+            result.append({
+                'id': pedido.id,
+                'usuario_id': pedido.usuario_id,
+                'total': pedido.total,
+                'estado': getattr(pedido, 'estado', 'pendiente'),
+                'fecha_creacion': pedido.created_at.isoformat() if hasattr(pedido, 'created_at') and pedido.created_at else None,
+                'datos_facturacion': getattr(pedido, 'datos_facturacion', {}) or {},
+                'items_count': len(pedido.items) if pedido.items else 0,
+                'items_preview': f'Pedido {pedido.id}'
+            })
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Error en mis_pedidos: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': 'Error interno del servidor', 'error': str(e)}), 500
+
+
+@pedidos_bp.get('/test')
+@jwt_required
+def test_pedidos():
+    """Endpoint de prueba simple"""
+    try:
+        print("DEBUG: Endpoint de prueba iniciado")
+        return jsonify({
+            'message': 'Endpoint de prueba funcionando',
+            'status': 'ok',
+            'timestamp': '2024-01-01T00:00:00Z'
+        })
+    except Exception as e:
+        print(f"Error en test_pedidos: {e}")
+        return jsonify({'message': 'Error en endpoint de prueba', 'error': str(e)}), 500
+
+
 @pedidos_bp.get('/<int:pedido_id>')
 @jwt_required
 def obtener_pedido(pedido_id: int):
     try:
-        p = ObtenerPedidoUseCase(repo).ejecutar(pedido_id)
+        from funcionalidades.pedidos.infrastructure.pedido_model import PedidoModel
+        from funcionalidades.productos.infrastructure.producto_model import ProductoModel
+        
+        # Usar directamente el modelo en lugar del use case
+        pedido = PedidoModel.query.get(pedido_id)
+        if not pedido:
+            return jsonify({'message': 'Pedido no encontrado'}), 404
+        
+        # Obtener información de productos para cada item
+        items_with_products = []
+        for item in pedido.items:
+            try:
+                producto = ProductoModel.query.filter_by(id=item.producto_id).first()
+                items_with_products.append({
+                    'id': item.id,
+                    'producto_id': item.producto_id,
+                    'cantidad': item.cantidad,
+                    'precio_unitario': item.precio_unitario,
+                    'precio': item.precio_unitario,
+                    'producto_titulo': producto.titulo if producto else f'Producto {item.producto_id}',
+                    'producto_descripcion': producto.descripcion if producto else 'Sin descripción'
+                })
+            except Exception:
+                items_with_products.append({
+                    'id': item.id,
+                    'producto_id': item.producto_id,
+                    'cantidad': item.cantidad,
+                    'precio_unitario': item.precio_unitario,
+                    'precio': item.precio_unitario,
+                    'producto_titulo': f'Producto {item.producto_id}',
+                    'producto_descripcion': 'Sin descripción'
+                })
+        
         return jsonify({
-            'id': p.id,
-            'usuario_id': p.usuario_id,
-            'total': p.total,
-            'datos_facturacion': p.datos_facturacion,
-            'items': [{'producto_id': i.producto_id, 'cantidad': i.cantidad, 'precio_unitario': i.precio_unitario} for i in p.items]
+            'id': pedido.id,
+            'usuario_id': pedido.usuario_id,
+            'total': pedido.total,
+            'datos_facturacion': pedido.datos_facturacion,
+            'items': items_with_products
         })
-    except NotFoundError as exc:
-        return jsonify({'message': str(exc)}), 404
+    except Exception as e:
+        print(f"Error en obtener_pedido: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': 'Error interno del servidor', 'error': str(e)}), 500
 
 
 @pedidos_bp.put('/<int:pedido_id>')

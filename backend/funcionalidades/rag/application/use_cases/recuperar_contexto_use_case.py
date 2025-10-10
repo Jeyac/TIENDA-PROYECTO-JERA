@@ -14,3 +14,7 @@ class RecuperarContextoUseCase:
         return [chunk for _doc, _score, chunk in resultados]
 
 
+
+
+
+

@@ -4,6 +4,7 @@ import os
 
 from funcionalidades.core.infraestructura.auth import generate_token, jwt_required
 from funcionalidades.core.infraestructura.security import hash_password, verify_password
+from funcionalidades.core.infraestructura.database import db
 from funcionalidades.usuarios.application.use_cases.registrar_usuario_use_case import RegistrarUsuarioUseCase
 from funcionalidades.usuarios.application.use_cases.autenticar_usuario_use_case import AutenticarUsuarioUseCase
 from funcionalidades.usuarios.infrastructure.usuario_repository_impl import UsuarioRepositoryImpl
@@ -65,26 +66,31 @@ def login():
     """Inicio de sesión"""
     try:
         data = request.get_json()
-        print(f"DEBUG: Datos recibidos: {data}")
+        print(f"\n=== DEBUG LOGIN ===")
+        print(f"Datos recibidos: {data}")
         
         # Aceptar tanto 'username' como 'username_or_email'
         username_or_email = data.get('username') or data.get('username_or_email')
         password = data.get('password')
         
-        print(f"DEBUG: username_or_email: {username_or_email}, password: {password}")
+        print(f"username_or_email: {username_or_email}")
+        print(f"password recibida: {'***' if password else None}")
         
         if not data or not username_or_email or not password:
+            print("ERROR: Faltan credenciales")
             return jsonify({'error': 'Username/email y password son requeridos'}), 400
         
         # Autenticar usuario
-        print("DEBUG: Intentando autenticar usuario...")
+        print("Intentando autenticar usuario...")
         usuario = autenticar_usuario_use_case.ejecutar(username_or_email, password)
-        print(f"DEBUG: Usuario encontrado: {usuario}")
+        print(f"Usuario autenticado exitosamente: ID={usuario.id}, username={usuario.username}, rol={usuario.rol}")
         
         if not usuario:
+            print("ERROR: Usuario no encontrado después de autenticar")
             raise InvalidCredentialsError("Credenciales inválidas")
         
         # Generar tokens
+        print("Generando tokens...")
         access_token = generate_token(
             user_id=usuario.id,
             username=usuario.username,
@@ -99,6 +105,9 @@ def login():
             expires_minutes=int(os.getenv('JWT_REFRESH_EXPIRES_MINUTES', 10080))
         )
         
+        print("Tokens generados exitosamente")
+        print(f"=== FIN DEBUG LOGIN ===\n")
+        
         return jsonify({
             'access_token': access_token,
             'refresh_token': refresh_token,
@@ -111,13 +120,18 @@ def login():
         }), 200
         
     except InvalidCredentialsError as e:
+        print(f"ERROR: Credenciales inválidas - {str(e)}")
         return jsonify({'error': str(e)}), 401
     except (NotFoundError, BadRequestError) as e:
+        print(f"ERROR: Not Found o Bad Request - {str(e)}")
         return jsonify({'error': str(e)}), 401
     except Exception as e:
-        print(f"DEBUG: Error en login: {str(e)}")
+        print(f"\n!!! ERROR CRÍTICO EN LOGIN !!!")
+        print(f"Tipo: {type(e).__name__}")
+        print(f"Mensaje: {str(e)}")
         import traceback
         traceback.print_exc()
+        print(f"!!! FIN ERROR CRÍTICO !!!\n")
         return jsonify({'error': 'Error interno del servidor'}), 500
 
 
@@ -169,4 +183,132 @@ def get_current_user():
         }), 200
         
     except Exception as e:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """Solicitar restablecimiento de contraseña"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('email'):
+            return jsonify({'error': 'Email requerido'}), 400
+        
+        email = data['email']
+        
+        # Verificar si el usuario existe
+        from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+        from funcionalidades.auth.infrastructure.password_reset_model import PasswordResetModel
+        from funcionalidades.auth.infrastructure.email_service import EmailService
+        
+        usuario = UsuarioModel.query.filter_by(email=email).first()
+        
+        if not usuario:
+            # Por seguridad, devolver el mismo mensaje aunque el usuario no exista
+            return jsonify({
+                'message': f'Si el email {email} está registrado, recibirás un enlace de recuperación.'
+            }), 200
+        
+        # Crear token de reset
+        reset_token = PasswordResetModel.create_reset_token(usuario.id)
+        
+        # Enviar email
+        email_service = EmailService()
+        email_sent = email_service.send_password_reset_email(
+            to_email=usuario.email,
+            username=usuario.username,
+            reset_token=reset_token.token
+        )
+        
+        if email_sent:
+            return jsonify({
+                'message': f'Se ha enviado un enlace de recuperación a {email}. Revisa tu bandeja de entrada.'
+            }), 200
+        else:
+            return jsonify({
+                'message': f'Error enviando el email. Intenta de nuevo más tarde.'
+            }), 500
+        
+    except Exception as e:
+        print(f"Error en reset-password: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@auth_bp.route('/reset-password/validate', methods=['POST'])
+def validate_reset_token():
+    """Validar token de reset de contraseña"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('token'):
+            return jsonify({'error': 'Token requerido'}), 400
+        
+        token = data['token']
+        
+        # Validar token
+        from funcionalidades.auth.infrastructure.password_reset_model import PasswordResetModel
+        reset_token = PasswordResetModel.validate_token(token)
+        
+        if not reset_token:
+            return jsonify({'error': 'Token inválido o expirado'}), 400
+        
+        return jsonify({
+            'valid': True,
+            'user_id': reset_token.user_id,
+            'username': reset_token.user.username
+        }), 200
+        
+    except Exception as e:
+        print(f"Error validando token: {str(e)}")
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@auth_bp.route('/reset-password/confirm', methods=['POST'])
+def confirm_password_reset():
+    """Confirmar cambio de contraseña con token"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('token') or not data.get('new_password'):
+            return jsonify({'error': 'Token y nueva contraseña requeridos'}), 400
+        
+        token = data['token']
+        new_password = data['new_password']
+        
+        if len(new_password) < 8:
+            return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        
+        # Validar token
+        from funcionalidades.auth.infrastructure.password_reset_model import PasswordResetModel
+        from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+        from funcionalidades.core.infraestructura.security import hash_password
+        
+        reset_token = PasswordResetModel.validate_token(token)
+        
+        if not reset_token:
+            return jsonify({'error': 'Token inválido o expirado'}), 400
+        
+        # Cambiar contraseña
+        usuario = UsuarioModel.query.get(reset_token.user_id)
+        if not usuario:
+            return jsonify({'error': 'Usuario no encontrado'}), 404
+        
+        usuario.password_hash = hash_password(new_password)
+        
+        # Marcar token como usado
+        reset_token.mark_as_used()
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Contraseña actualizada exitosamente'
+        }), 200
+        
+    except Exception as e:
+        print(f"Error confirmando reset: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': 'Error interno del servidor'}), 500

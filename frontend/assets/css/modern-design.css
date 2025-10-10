@@ -1,0 +1,386 @@
+/* Modern Design System - Professional UI Enhancements */
+
+/* Global Variables */
+:root {
+  --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --warning-gradient: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  --danger-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+  
+  --card-shadow: 0 10px 30px rgba(102, 126, 234, 0.12);
+  --card-shadow-hover: 0 20px 60px rgba(102, 126, 234, 0.2);
+  
+  --text-primary: #2d3748;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+  --text-light: #a0aec0;
+  
+  --border-radius: 1.5rem;
+  --border-radius-sm: 1rem;
+  --border-radius-lg: 2rem;
+  
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glass Morphism Cards */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+/* Modern Buttons */
+.btn-modern {
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+  border: none;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+}
+
+/* Aplicar estilos modernos solo a botones que no sean enlaces */
+button.btn:not(.btn-link) {
+  border-radius: var(--border-radius-sm) !important;
+  font-weight: 600 !important;
+  transition: var(--transition) !important;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15) !important;
+}
+
+.btn-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-modern:hover::before {
+  left: 100%;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+}
+
+.btn-primary.btn-modern {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.btn-success.btn-modern {
+  background: var(--success-gradient);
+  color: white;
+}
+
+.btn-warning.btn-modern {
+  background: var(--warning-gradient);
+  color: white;
+}
+
+.btn-danger.btn-modern {
+  background: var(--danger-gradient);
+  color: white;
+}
+
+/* Modern Form Controls */
+.form-control-modern {
+  border-radius: var(--border-radius-sm);
+  border: 2px solid rgba(102, 126, 234, 0.15);
+  padding: 0.75rem 1rem;
+  transition: var(--transition);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  color: #000000; /* Solo las fuentes pueden ser negras */
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+/* Aplicar estilos modernos a todos los inputs - FONDO BLANCO */
+.form-control, .form-select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select {
+  border-radius: var(--border-radius-sm) !important;
+  border: 2px solid rgba(102, 126, 234, 0.15) !important;
+  padding: 0.75rem 1rem !important;
+  transition: var(--transition) !important;
+  background: #ffffff !important; /* FONDO BLANCO PURO */
+  backdrop-filter: none !important;
+  color: #000000 !important; /* Solo las fuentes pueden ser negras */
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1) !important;
+}
+
+.form-control:focus, .form-select:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+  border-color: #667eea !important;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25), 0 4px 12px rgba(102, 126, 234, 0.15) !important;
+  background: #ffffff !important; /* FONDO BLANCO PURO AL FOCUS */
+  outline: none !important;
+}
+
+.form-control:hover, .form-select:hover, input[type="text"]:hover, input[type="email"]:hover, input[type="password"]:hover, input[type="number"]:hover, textarea:hover, select:hover {
+  border-color: rgba(102, 126, 234, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15) !important;
+  background: #ffffff !important; /* FONDO BLANCO PURO AL HOVER */
+}
+
+.form-control-modern:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25), 0 4px 12px rgba(102, 126, 234, 0.15);
+  background: rgba(255, 255, 255, 1);
+  outline: none;
+}
+
+.form-control-modern::placeholder {
+  color: var(--text-muted);
+}
+
+.form-control-modern:hover {
+  border-color: rgba(102, 126, 234, 0.25);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+/* Product Cards */
+.product-card-modern {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.product-card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.product-card-modern:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: var(--card-shadow-hover);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.product-card-modern .card-img-top {
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  transition: var(--transition);
+}
+
+.product-card-modern:hover .card-img-top {
+  transform: scale(1.05);
+}
+
+/* Navigation Enhancements */
+.navbar-modern {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  transition: var(--transition);
+}
+
+.navbar-modern:hover {
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.2);
+}
+
+.nav-link-modern {
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem 1rem;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-link-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--primary-gradient);
+  opacity: 0;
+  transition: var(--transition);
+  z-index: -1;
+}
+
+.nav-link-modern:hover::before,
+.nav-link-modern.active::before {
+  opacity: 1;
+}
+
+.nav-link-modern:hover,
+.nav-link-modern.active {
+  color: white !important;
+  transform: translateY(-2px);
+}
+
+/* Table Enhancements */
+.table-modern {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border-radius: var(--border-radius);
+  box-shadow: var(--glass-shadow);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+}
+
+.table-modern thead th {
+  background: var(--primary-gradient);
+  color: white;
+  border: none;
+  font-weight: 600;
+  padding: 1rem;
+}
+
+.table-modern tbody tr {
+  transition: var(--transition);
+}
+
+.table-modern tbody tr:hover {
+  background: rgba(102, 126, 234, 0.1);
+  transform: scale(1.01);
+}
+
+.table-modern tbody td {
+  padding: 1rem;
+  border: none;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+}
+
+/* Badge Enhancements */
+.badge-modern {
+  border-radius: var(--border-radius-sm);
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+  transition: var(--transition);
+}
+
+.badge-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+}
+
+/* Loading States */
+.loading-shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Floating Elements */
+.floating {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: var(--primary-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  :root {
+    --border-radius: 1rem;
+    --border-radius-sm: 0.75rem;
+    --border-radius-lg: 1.5rem;
+  }
+  
+  .glass-card {
+    margin-bottom: 1rem;
+  }
+  
+  .btn-modern {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(45, 55, 72, 0.95);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #f7fafc;
+    --text-secondary: #e2e8f0;
+    --text-muted: #a0aec0;
+    --text-light: #718096;
+  }
+  
+  .form-control-modern, .form-control, .form-select, input[type="text"], input[type="email"], input[type="password"], input[type="number"], textarea, select {
+    background: #ffffff !important; /* MANTENER FONDO BLANCO EN MODO OSCURO TAMBIÉN */
+    color: #000000 !important; /* Mantener fuentes en negro */
+    border-color: rgba(102, 126, 234, 0.15) !important;
+  }
+  
+  .form-control-modern:focus, .form-control:focus, .form-select:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+    background: #ffffff !important; /* MANTENER FONDO BLANCO AL FOCUS */
+    border-color: #667eea !important;
+    color: #000000 !important; /* Mantener fuentes en negro */
+  }
+}
+
+
+

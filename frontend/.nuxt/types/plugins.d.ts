@@ -22,7 +22,18 @@ type NuxtAppInjections =
   InjectionType<typeof import("../../node_modules/@nuxt/devtools/dist/runtime/plugins/devtools.client.js")> &
   InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/dev-server-logs.js")> &
   InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/warn.dev.server.js")> &
-  InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/check-if-layout-used.js")>
+  InjectionType<typeof import("../../node_modules/nuxt/dist/app/plugins/check-if-layout-used.js")> &
+  InjectionType<typeof import("../../plugins/bootstrap.client")> &
+  InjectionType<typeof import("../../plugins/bootstrap-theme.client")> &
+  InjectionType<typeof import("../../plugins/ui.helpers")> &
+  InjectionType<typeof import("../../plugins/fetch-logger.client")> &
+  InjectionType<typeof import("../../plugins/auth.client")> &
+  InjectionType<typeof import("../../plugins/carrito.client")> &
+  InjectionType<typeof import("../../plugins/analytics.ui")> &
+  InjectionType<typeof import("../../plugins/catalog.ui")> &
+  InjectionType<typeof import("../../plugins/modern-design.client")> &
+  InjectionType<typeof import("../../plugins/products.ui")> &
+  InjectionType<typeof import("../../plugins/timezone.client")>
 
 declare module '#app' {
   interface NuxtApp extends NuxtAppInjections { }

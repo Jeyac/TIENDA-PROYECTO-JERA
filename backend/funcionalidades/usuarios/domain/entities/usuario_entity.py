@@ -24,7 +24,7 @@ class Usuario:
         
         if not self.password_hash:
             raise BadRequestError('password_hash es obligatorio')
-        if self.rol not in {'cliente', 'administrador'}:
+        if self.rol not in {'cliente', 'administrador', 'atencion_cliente'}:
             raise BadRequestError('rol inválido')
 
 

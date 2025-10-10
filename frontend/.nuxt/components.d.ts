@@ -14,6 +14,21 @@ type HydrationStrategies = {
 type LazyComponent<T> = (T & DefineComponent<HydrationStrategies, {}, {}, {}, {}, {}, {}, { hydrated: () => void }>)
 
 
+export const AvatarCircle: typeof import("../componentes/AvatarCircle.vue")['default']
+export const BaseButton: typeof import("../componentes/BaseButton.vue")['default']
+export const CardPanel: typeof import("../componentes/CardPanel.vue")['default']
+export const ConfirmModal: typeof import("../componentes/ConfirmModal.vue")['default']
+export const DataTable: typeof import("../componentes/DataTable.vue")['default']
+export const EmptyState: typeof import("../componentes/EmptyState.vue")['default']
+export const FilterBar: typeof import("../componentes/FilterBar.vue")['default']
+export const InlineSpinner: typeof import("../componentes/InlineSpinner.vue")['default']
+export const KpiCard: typeof import("../componentes/KpiCard.vue")['default']
+export const OrderStatusBadge: typeof import("../componentes/OrderStatusBadge.vue")['default']
+export const Paginator: typeof import("../componentes/Paginator.vue")['default']
+export const SearchBar: typeof import("../componentes/SearchBar.vue")['default']
+export const SectionTitle: typeof import("../componentes/SectionTitle.vue")['default']
+export const StatusBadge: typeof import("../componentes/StatusBadge.vue")['default']
+export const ToggleSwitch: typeof import("../componentes/ToggleSwitch.vue")['default']
 export const NuxtWelcome: typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']
 export const NuxtLayout: typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
 export const NuxtErrorBoundary: typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
@@ -38,6 +53,21 @@ export const Html: typeof import("../node_modules/nuxt/dist/head/runtime/compone
 export const Body: typeof import("../node_modules/nuxt/dist/head/runtime/components")['Body']
 export const NuxtIsland: typeof import("../node_modules/nuxt/dist/app/components/nuxt-island")['default']
 export const NuxtRouteAnnouncer: typeof import("../node_modules/nuxt/dist/app/components/server-placeholder")['default']
+export const LazyAvatarCircle: LazyComponent<typeof import("../componentes/AvatarCircle.vue")['default']>
+export const LazyBaseButton: LazyComponent<typeof import("../componentes/BaseButton.vue")['default']>
+export const LazyCardPanel: LazyComponent<typeof import("../componentes/CardPanel.vue")['default']>
+export const LazyConfirmModal: LazyComponent<typeof import("../componentes/ConfirmModal.vue")['default']>
+export const LazyDataTable: LazyComponent<typeof import("../componentes/DataTable.vue")['default']>
+export const LazyEmptyState: LazyComponent<typeof import("../componentes/EmptyState.vue")['default']>
+export const LazyFilterBar: LazyComponent<typeof import("../componentes/FilterBar.vue")['default']>
+export const LazyInlineSpinner: LazyComponent<typeof import("../componentes/InlineSpinner.vue")['default']>
+export const LazyKpiCard: LazyComponent<typeof import("../componentes/KpiCard.vue")['default']>
+export const LazyOrderStatusBadge: LazyComponent<typeof import("../componentes/OrderStatusBadge.vue")['default']>
+export const LazyPaginator: LazyComponent<typeof import("../componentes/Paginator.vue")['default']>
+export const LazySearchBar: LazyComponent<typeof import("../componentes/SearchBar.vue")['default']>
+export const LazySectionTitle: LazyComponent<typeof import("../componentes/SectionTitle.vue")['default']>
+export const LazyStatusBadge: LazyComponent<typeof import("../componentes/StatusBadge.vue")['default']>
+export const LazyToggleSwitch: LazyComponent<typeof import("../componentes/ToggleSwitch.vue")['default']>
 export const LazyNuxtWelcome: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
 export const LazyNuxtLayout: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
 export const LazyNuxtErrorBoundary: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>

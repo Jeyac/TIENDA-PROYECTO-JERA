@@ -6,14 +6,14 @@
           <div class="auth-card">
             <div class="auth-header text-center mb-4">
               <i class="bi bi-person-circle display-4 text-primary mb-3"></i>
-              <h2 class="fw-bold">Iniciar Sesión</h2>
+              <h2 class="fw-bold">Iniciar sesión</h2>
               <p class="text-muted">Accede a tu cuenta para continuar</p>
             </div>
 
             <form @submit.prevent="handleLogin" class="auth-form">
               <div class="mb-3">
                 <label for="username_or_email" class="form-label fw-semibold">
-                  <i class="bi bi-person me-1"></i>Usuario o Correo
+                  <i class="bi bi-person me-1"></i>Usuario o correo
                 </label>
                 <input
                   v-model="form.username_or_email"
@@ -40,41 +40,43 @@
                     required
                     :disabled="auth.isLoading"
                   >
-                  <button
-                    class="btn btn-outline-secondary"
-                    type="button"
-                    @click="showPassword = !showPassword"
-                    :disabled="auth.isLoading"
-                  >
-                    <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
-                  </button>
+              <button
+                type="button"
+                class="btn btn-outline-secondary btn-modern"
+                @click="showPassword = !showPassword"
+                :disabled="auth.isLoading"
+              >
+                <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+              </button>
                 </div>
               </div>
 
               <div class="mb-3 text-end">
-                <button
-                  type="button"
-                  class="btn btn-link p-0 text-decoration-none"
-                  @click="showResetModal = true"
-                  :disabled="auth.isLoading"
-                >
-                  <i class="bi bi-question-circle me-1"></i>¿Olvidaste tu contraseña?
-                </button>
+              <BaseButton
+                type="button"
+                class="btn btn-link p-0 text-decoration-none"
+                variant="link"
+                @click="showResetModal = true"
+                :disabled="auth.isLoading"
+              >
+                <i class="bi bi-question-circle me-1"></i>¿Olvidaste tu contraseña?
+              </BaseButton>
               </div>
 
               <div v-if="auth.error" class="alert alert-danger" role="alert">
                 <i class="bi bi-exclamation-triangle me-2"></i>{{ auth.error }}
               </div>
 
-              <button
+              <BaseButton
                 type="submit"
-                class="btn btn-primary w-100 py-2 fw-semibold"
+                class="w-100 py-2 fw-semibold"
+                variant="primary"
+                :loading="auth.isLoading"
                 :disabled="auth.isLoading"
               >
-                <span v-if="auth.isLoading" class="spinner-border spinner-border-sm me-2"></span>
-                <i v-else class="bi bi-box-arrow-in-right me-2"></i>
+                <i v-if="!auth.isLoading" class="bi bi-box-arrow-in-right me-2"></i>
                 {{ auth.isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión' }}
-              </button>
+              </BaseButton>
             </form>
 
             <div class="auth-footer text-center mt-4">
@@ -96,7 +98,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">
-              <i class="bi bi-key me-2"></i>Recuperar Contraseña
+              <i class="bi bi-key me-2"></i>Recuperar contraseña
             </h5>
             <button type="button" class="btn-close" @click="showResetModal = false"></button>
           </div>
@@ -106,7 +108,7 @@
             </p>
             <form @submit.prevent="handleResetPassword">
               <div class="mb-3">
-                <label for="reset_email" class="form-label">Correo Electrónico</label>
+                <label for="reset_email" class="form-label">Correo electrónico</label>
                 <input
                   v-model="resetForm.email"
                   type="email"
@@ -121,13 +123,12 @@
                 {{ resetMessage.text }}
               </div>
               <div class="d-flex gap-2">
-                <button type="button" class="btn btn-secondary flex-fill" @click="showResetModal = false">
+                <BaseButton type="button" variant="secondary" class="flex-fill" @click="showResetModal = false">
                   Cancelar
-                </button>
-                <button type="submit" class="btn btn-primary flex-fill" :disabled="auth.isLoading">
-                  <span v-if="auth.isLoading" class="spinner-border spinner-border-sm me-2"></span>
+                </BaseButton>
+                <BaseButton type="submit" variant="primary" class="flex-fill" :loading="auth.isLoading" :disabled="auth.isLoading">
                   Enviar Enlace
-                </button>
+                </BaseButton>
               </div>
             </form>
           </div>
@@ -164,16 +165,28 @@ const resetMessage = ref<{ type: 'success' | 'error', text: string } | null>(nul
 const handleLogin = async () => {
   const result = await auth.login(form)
   
-  if (result.success) {
-    // Redirect to intended page or home
-    const next = (route.query.next as string) || '/'
-    await navigateTo(next)
+  if (result.success && result.user) {
+    // Redirigir según el rol del usuario
+    let redirect = (route.query.next as string) || '/'
+    
+    // Si no hay un destino específico, redirigir según el rol
+    if (!route.query.next) {
+      switch (result.user.rol) {
+        case 'atencion_cliente':
+          redirect = '/atencion/tickets'
+          break
+        default:
+          redirect = '/'
+      }
+    }
+    
+    await navigateTo(redirect)
   }
 }
 
 // Handle password reset
 const handleResetPassword = async () => {
-  const result = await auth.resetPassword(resetForm)
+  const result = await auth.resetPassword(resetForm.email)
   
   if (result.success) {
     resetMessage.value = { type: 'success', text: result.message || 'Correo enviado exitosamente' }
@@ -183,7 +196,7 @@ const handleResetPassword = async () => {
       resetForm.email = ''
     }, 2000)
   } else {
-    resetMessage.value = { type: 'error', text: result.error || 'Error al enviar correo' }
+    resetMessage.value = { type: 'error', text: result.message || 'Error al enviar correo' }
   }
 }
 
@@ -195,18 +208,66 @@ onMounted(() => {
 
 <style scoped>
 .auth-page {
-  min-height: 80vh;
+  min-height: 100vh;
   display: flex;
   align-items: center;
-  padding: 2rem 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+  pointer-events: none;
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(5deg); }
 }
 
 .auth-card {
-  background: var(--bs-body-bg);
-  border: 1px solid var(--bs-border-color);
-  border-radius: 1rem;
-  padding: 2rem;
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-radius: 2.5rem;
+  padding: 3.5rem;
+  box-shadow: 
+    0 25px 50px rgba(102, 126, 234, 0.2),
+    0 10px 20px rgba(102, 126, 234, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  transform: translateY(0);
+  transition: all 0.3s ease;
+}
+
+.auth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.auth-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 
+    0 35px 70px rgba(102, 126, 234, 0.25),
+    0 15px 30px rgba(102, 126, 234, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .auth-header {
@@ -218,17 +279,7 @@ onMounted(() => {
   margin-bottom: 0.5rem;
 }
 
-.auth-form .form-control {
-  border-radius: 0.5rem;
-  border: 1px solid var(--bs-border-color);
-  padding: 0.75rem;
-  transition: all 0.3s ease;
-}
-
-.auth-form .form-control:focus {
-  border-color: var(--bs-primary);
-  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
-}
+/* Los estilos globales ya se aplican automáticamente */
 
 .auth-form .input-group .btn {
   border-radius: 0 0.5rem 0.5rem 0;

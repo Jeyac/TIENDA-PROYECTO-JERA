@@ -8,7 +8,9 @@ type CarritoItem = {
 }
 
 export const useCarritoStore = defineStore('carrito', {
-  state: () => ({ items: [] as CarritoItem[] }),
+  state: () => ({ 
+    items: [] as CarritoItem[] 
+  }),
   getters: {
     total(state) {
       return state.items.reduce((acc, it) => acc + it.cantidad * it.precio_unitario, 0)
@@ -18,15 +20,26 @@ export const useCarritoStore = defineStore('carrito', {
     }
   },
   actions: {
-    agregarItem(p: any) {
+    agregarItem(p: any, cantidad: number = 1) {
       const found = this.items.find(i => i.producto_id === p.id)
-      if (found) found.cantidad += 1
-      else this.items.push({ producto_id: p.id, titulo: p.titulo, precio_unitario: p.precio, cantidad: 1 })
+      if (found) {
+        // Si el producto ya existe, establecer la cantidad exacta (no sumar)
+        found.cantidad = cantidad
+      } else {
+        // Si es un producto nuevo, agregarlo con la cantidad especificada
+        this.items.push({ producto_id: p.id, titulo: p.titulo, precio_unitario: p.precio, cantidad })
+      }
     },
     quitarItem(producto_id: number) {
       this.items = this.items.filter(i => i.producto_id !== producto_id)
     },
-    vaciar() { this.items = [] }
+    vaciar() { 
+      this.items = [] 
+    },
+    // Inicializar carrito limpio
+    inicializar() {
+      this.items = []
+    }
   }
 })
 

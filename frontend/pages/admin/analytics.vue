@@ -7,9 +7,13 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h1 class="display-6 fw-bold mb-2">
-                <i class="bi bi-graph-up me-2"></i>Analytics
+                <i class="bi bi-graph-up me-2"></i>Analitica
               </h1>
               <p class="text-muted mb-0">Panel de control y métricas del sistema</p>
+              <div v-if="kpisPending" class="text-primary small d-flex align-items-center mt-1">
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                Cargando KPIs...
+              </div>
             </div>
             <div class="text-end">
               <small class="text-muted">Última actualización: {{ lastUpdate }}</small>
@@ -20,82 +24,67 @@
 
       <!-- KPIs Cards -->
       <div class="row g-4 mb-4">
-        <div class="col-md-3">
-          <div class="card kpi-card border-0 shadow-sm">
-            <div class="card-body text-center">
-              <div class="kpi-icon bg-primary text-white rounded-circle mx-auto mb-3">
-                <i class="bi bi-people"></i>
-              </div>
-              <h3 class="fw-bold text-primary">{{ kpis.total_usuarios || 0 }}</h3>
-              <p class="text-muted mb-0">Total Usuarios</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card kpi-card border-0 shadow-sm">
-            <div class="card-body text-center">
-              <div class="kpi-icon bg-success text-white rounded-circle mx-auto mb-3">
-                <i class="bi bi-box"></i>
-              </div>
-              <h3 class="fw-bold text-success">{{ kpis.total_productos || 0 }}</h3>
-              <p class="text-muted mb-0">Total Productos</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card kpi-card border-0 shadow-sm">
-            <div class="card-body text-center">
-              <div class="kpi-icon bg-warning text-white rounded-circle mx-auto mb-3">
-                <i class="bi bi-bag"></i>
-              </div>
-              <h3 class="fw-bold text-warning">{{ kpis.total_pedidos || 0 }}</h3>
-              <p class="text-muted mb-0">Total Pedidos</p>
-            </div>
-          </div>
-        </div>
-        <div class="col-md-3">
-          <div class="card kpi-card border-0 shadow-sm">
-            <div class="card-body text-center">
-              <div class="kpi-icon bg-info text-white rounded-circle mx-auto mb-3">
-                <i class="bi bi-chat-dots"></i>
-              </div>
-              <h3 class="fw-bold text-info">{{ kpis.total_chats || 0 }}</h3>
-              <p class="text-muted mb-0">Total Chats</p>
-            </div>
-          </div>
-        </div>
+        <KpiCard icon="bi bi-people" label="Total Usuarios" :value="kpis.usuarios_total || 0" color="primary" />
+        <KpiCard icon="bi bi-box" label="Total Productos" :value="kpis.productos_total || 0" color="success" />
+        <KpiCard icon="bi bi-currency-dollar" label="Total Ingresos" :value="`Q${kpis.ingresos_total || 0}`" color="info" />
+        <KpiCard icon="bi bi-chat-dots" label="Conversaciones" :value="conversationAnalytics.total_conversaciones || 0" color="warning" />
       </div>
 
-      <!-- Charts Row -->
+      <!-- Chatbot Analytics -->
       <div class="row g-4 mb-4">
-        <div class="col-lg-8">
-          <div class="card border-0 shadow-sm">
+        <!-- Temas más preguntados -->
+        <div class="col-lg-6">
+          <div class="card" :class="$analyticsUi?.kpiCard || 'border-0 shadow-sm'">
             <div class="card-header bg-white border-bottom">
               <h5 class="card-title mb-0">
-                <i class="bi bi-bar-chart me-2"></i>Pedidos por Mes
+                <i class="bi bi-question-circle me-2"></i>Temas más preguntados
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder">
-                <i class="bi bi-graph-up text-muted" style="font-size: 4rem;"></i>
-                <p class="text-muted mt-2">Gráfico de pedidos por mes</p>
-                <small class="text-muted">Integración con Chart.js pendiente</small>
+              <div v-if="!conversationAnalytics.temas_mas_preguntados || conversationAnalytics.temas_mas_preguntados.length === 0" class="text-center py-4">
+                <i class="bi bi-chat-quote text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">No hay datos de temas disponibles</p>
+              </div>
+              <div v-else class="list-group list-group-flush">
+                <div v-for="(tema, index) in conversationAnalytics.temas_mas_preguntados" :key="index" class="list-group-item px-0 border-0">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h6 class="mb-1 text-capitalize">{{ tema.tema }}</h6>
+                    </div>
+                    <div class="text-end">
+                      <span class="badge bg-info">{{ tema.cantidad }} preguntas</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
-        <div class="col-lg-4">
-          <div class="card border-0 shadow-sm">
+
+        <!-- Respuestas más frecuentes -->
+        <div class="col-lg-6">
+          <div class="card" :class="$analyticsUi?.kpiCard || 'border-0 shadow-sm'">
             <div class="card-header bg-white border-bottom">
               <h5 class="card-title mb-0">
-                <i class="bi bi-pie-chart me-2"></i>Productos por Categoría
+                <i class="bi bi-chat-dots me-2"></i>Respuestas más frecuentes
               </h5>
             </div>
             <div class="card-body">
-              <div class="chart-placeholder">
-                <i class="bi bi-pie-chart text-muted" style="font-size: 4rem;"></i>
-                <p class="text-muted mt-2">Distribución por categorías</p>
-                <small class="text-muted">Integración con Chart.js pendiente</small>
+              <div v-if="!conversationAnalytics.respuestas_mas_frecuentes || conversationAnalytics.respuestas_mas_frecuentes.length === 0" class="text-center py-4">
+                <i class="bi bi-robot text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">No hay datos de respuestas disponibles</p>
+              </div>
+              <div v-else class="list-group list-group-flush">
+                <div v-for="(respuesta, index) in conversationAnalytics.respuestas_mas_frecuentes" :key="index" class="list-group-item px-0 border-0">
+                  <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                      <p class="mb-1 small text-muted">{{ respuesta.content.length > 80 ? respuesta.content.substring(0, 80) + '...' : respuesta.content }}</p>
+                    </div>
+                    <div class="text-end ms-2">
+                      <span class="badge bg-success">{{ respuesta.count }} veces</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -104,12 +93,13 @@
 
       <!-- Recent Activity -->
       <div class="row g-4">
-        <div class="col-lg-6">
-          <div class="card border-0 shadow-sm">
+        <div class="col-lg-12">
+          <div class="card" :class="$analyticsUi?.kpiCard || 'border-0 shadow-sm'">
             <div class="card-header bg-white border-bottom">
               <h5 class="card-title mb-0">
-                <i class="bi bi-clock-history me-2"></i>Pedidos Recientes
+                <i class="bi bi-clock-history me-2"></i>Pedidos recientes
               </h5>
+              <InlineSpinner v-if="ordersPending">Cargando pedidos...</InlineSpinner>
             </div>
             <div class="card-body">
               <div v-if="recentOrders.length === 0" class="text-center py-4">
@@ -132,42 +122,15 @@
             </div>
           </div>
         </div>
-        <div class="col-lg-6">
-          <div class="card border-0 shadow-sm">
-            <div class="card-header bg-white border-bottom">
-              <h5 class="card-title mb-0">
-                <i class="bi bi-chat-text me-2"></i>Chats Recientes
-              </h5>
-            </div>
-            <div class="card-body">
-              <div v-if="recentChats.length === 0" class="text-center py-4">
-                <i class="bi bi-chat text-muted" style="font-size: 3rem;"></i>
-                <p class="text-muted mt-2">No hay chats recientes</p>
-              </div>
-              <div v-else class="list-group list-group-flush">
-                <div v-for="chat in recentChats" :key="chat.id" class="list-group-item px-0 border-0">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <h6 class="mb-1">{{ chat.usuario_nombre || 'Usuario' }}</h6>
-                      <p class="text-muted mb-0 small">{{ chat.mensaje.substring(0, 50) }}...</p>
-                    </div>
-                    <div class="text-end">
-                      <small class="text-muted">{{ chat.fecha_creacion }}</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
+
 
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-5">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Cargando...</span>
         </div>
-        <p class="text-muted mt-3">Cargando analytics...</p>
+        <p class="text-muted mt-3">Cargando analiticas...</p>
       </div>
 
       <!-- Error State -->
@@ -188,7 +151,7 @@ import { useAuthStore } from '../../stores/auth'
 
 // Middleware para proteger la ruta
 definePageMeta({
-  middleware: 'admin',
+  middleware: ['auth', 'admin'],
   layout: 'admin'
 })
 
@@ -198,10 +161,16 @@ const auth = useAuthStore()
 // Data
 const kpis = ref<any>({})
 const recentOrders = ref<any[]>([])
-const recentChats = ref<any[]>([])
+const conversationAnalytics = ref<any>({})
 const loading = ref(false)
 const error = ref('')
 const lastUpdate = ref('')
+
+// Pending/Error flags for UI
+const kpisPending = ref(false)
+const ordersPending = ref(false)
+const kpisErrMsg = ref('')
+const ordersErrMsg = ref('')
 
 // Methods
 const loadData = async () => {
@@ -209,51 +178,61 @@ const loadData = async () => {
   error.value = ''
   
   try {
-    // Load KPIs
-    const kpisRes = await fetch(`${config.public.apiBase}/api/admin/kpis`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    
-    if (kpisRes.ok) {
-      kpis.value = await kpisRes.json()
-    } else if (kpisRes.status === 401) {
-      await auth.logout()
-      return
+    // Load KPIs con $fetch
+    const kpisUrl = `${config.public.apiBase}/api/admin/kpis`
+    kpisPending.value = true
+    kpisErrMsg.value = ''
+    try {
+      const data = await $fetch<any>(kpisUrl, { headers: { 'Authorization': `Bearer ${auth.token}` } })
+      console.log('KPIs recibidos:', data)
+      kpis.value = data
+    } catch (e: any) {
+      if (e?.statusCode === 401) { await auth.logout(); return }
+      console.error('Error cargando KPIs:', e)
+      kpisErrMsg.value = e?.message || 'Error al cargar KPIs'
+    } finally {
+      kpisPending.value = false
     }
 
-    // Load recent orders
-    const ordersRes = await fetch(`${config.public.apiBase}/api/admin/pedidos`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    
-    if (ordersRes.ok) {
-      const orders = await ordersRes.json()
-      recentOrders.value = orders.slice(0, 5) // Last 5 orders
+    // Load recent orders con $fetch
+    const ordersUrl = `${config.public.apiBase}/api/admin/pedidos`
+    ordersPending.value = true
+    ordersErrMsg.value = ''
+    try {
+      const data = await $fetch<any[]>(ordersUrl, { headers: { 'Authorization': `Bearer ${auth.token}` } })
+      recentOrders.value = (data || []).slice(0, 5)
+    } catch (e: any) {
+      console.error('Error cargando pedidos:', e)
+      ordersErrMsg.value = e?.message || 'Error al cargar pedidos'
+    } finally {
+      ordersPending.value = false
     }
 
-    // Load recent chats
-    const chatsRes = await fetch(`${config.public.apiBase}/api/admin/chats`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
+
+    // Load conversation analytics
+    try {
+      const conversationUrl = `${config.public.apiBase}/api/analytics/conversations`
+      const conversationData = await $fetch<any>(conversationUrl, { 
+        headers: { 'Authorization': `Bearer ${auth.token}` } 
+      })
+      conversationAnalytics.value = conversationData
+    } catch (e: any) {
+      console.error('Error cargando analítica de conversaciones:', e)
+      if (e?.statusCode === 401) {
+        await auth.logout()
       }
-    })
-    
-    if (chatsRes.ok) {
-      const chats = await chatsRes.json()
-      recentChats.value = chats.slice(0, 5) // Last 5 chats
     }
 
-    lastUpdate.value = new Date().toLocaleString()
+    lastUpdate.value = new Date().toLocaleString('es-ES', {
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    })
   } catch (err: any) {
     error.value = err.message || 'Error al cargar los datos'
   } finally {
     loading.value = false
   }
 }
+
 
 // Lifecycle
 onMounted(() => {
@@ -312,3 +291,4 @@ onMounted(() => {
   background-color: var(--bs-gray-100) !important;
 }
 </style>
+

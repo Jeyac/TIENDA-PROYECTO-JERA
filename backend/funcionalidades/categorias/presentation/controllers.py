@@ -14,7 +14,7 @@ categorias_bp = Blueprint('categorias', __name__)
 repo = CategoriaRepositoryImpl()
 
 
-@categorias_bp.post('/')
+@categorias_bp.route('/', methods=['POST', 'OPTIONS'])
 @jwt_required(roles={'administrador'})
 def crear_categoria():
     data = request.get_json(silent=True) or {}
@@ -30,7 +30,7 @@ def crear_categoria():
         return jsonify({'message': str(exc)}), 400
 
 
-@categorias_bp.get('/')
+@categorias_bp.route('/', methods=['GET', 'OPTIONS'])
 def listar_categorias():
     # Público: solo categorías activas
     from funcionalidades.categorias.infrastructure.categoria_model import CategoriaModel
@@ -43,7 +43,7 @@ def listar_categorias():
     } for c in categorias])
 
 
-@categorias_bp.get('/<int:categoria_id>')
+@categorias_bp.route('/<int:categoria_id>', methods=['GET', 'OPTIONS'])
 def obtener_categoria(categoria_id: int):
     try:
         use_case = ObtenerCategoriaUseCase(repo)
@@ -81,3 +81,4 @@ def eliminar_categoria(categoria_id: int):
         return jsonify({'message': 'Eliminado'})
     except NotFoundError as exc:
         return jsonify({'message': str(exc)}), 404
+

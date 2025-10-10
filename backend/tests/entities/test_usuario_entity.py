@@ -21,3 +21,7 @@ def test_usuario_rol_invalido(rol):
         Usuario(id=None, username='u', email='u@mail.com', password_hash='h', rol=rol)
 
 
+
+
+
+

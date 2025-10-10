@@ -54,6 +54,11 @@ def jwt_required(fn=None, *, roles: Optional[Iterable[str]] = None):
     def decorator(inner_fn):
         @wraps(inner_fn)
         def wrapper(*args, **kwargs):
+            # Permitir peticiones OPTIONS sin autenticación
+            if request.method == 'OPTIONS':
+                from flask import jsonify
+                return jsonify({'status': 'ok'})
+                
             auth_header = request.headers.get('Authorization', '')
             if not auth_header.startswith('Bearer '):
                 raise AuthorizationError('Falta token Bearer')
@@ -79,5 +84,29 @@ def jwt_required(fn=None, *, roles: Optional[Iterable[str]] = None):
     if fn is not None and callable(fn):
         return decorator(fn)
     return decorator
+
+
+def get_current_user_id() -> int:
+    """Obtener el ID del usuario actual desde el contexto de Flask"""
+    from flask import g
+    if not hasattr(g, 'user_id'):
+        raise AuthenticationError('No hay usuario autenticado')
+    return g.user_id
+
+
+def get_current_username() -> str:
+    """Obtener el username del usuario actual desde el contexto de Flask"""
+    from flask import g
+    if not hasattr(g, 'username'):
+        raise AuthenticationError('No hay usuario autenticado')
+    return g.username
+
+
+def get_current_user_role() -> str:
+    """Obtener el rol del usuario actual desde el contexto de Flask"""
+    from flask import g
+    if not hasattr(g, 'rol'):
+        raise AuthenticationError('No hay usuario autenticado')
+    return g.rol
 
 

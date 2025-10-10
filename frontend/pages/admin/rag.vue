@@ -7,12 +7,12 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h1 class="display-6 fw-bold mb-2">
-                <i class="bi bi-file-earmark-arrow-up me-2"></i>Gestión de Archivos RAG
+                <i class="bi bi-file-earmark-arrow-up me-2"></i>Gestión de archivos para RAG
               </h1>
               <p class="text-muted mb-0">Sube y gestiona archivos para el sistema de recuperación de información</p>
             </div>
             <button class="btn btn-primary" @click="showUploadModal = true">
-              <i class="bi bi-cloud-upload me-2"></i>Subir Archivo
+              <i class="bi bi-cloud-upload me-2"></i>Subir archivo
             </button>
           </div>
         </div>
@@ -21,15 +21,27 @@
       <!-- Upload Area -->
       <div class="row mb-4">
         <div class="col-12">
+          <div v-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>{{ error }}
+            <button type="button" class="btn-close" @click="error = ''"></button>
+          </div>
           <div class="card border-0 shadow-sm">
             <div class="card-body">
               <div class="upload-area" @dragover.prevent @drop.prevent="handleDrop">
-                <div class="upload-content">
+                <div v-if="uploading" class="upload-content">
+                  <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Subiendo...</span>
+                  </div>
+                  <h5>Subiendo archivo...</h5>
+                  <p class="text-muted">Por favor espera</p>
+                </div>
+                <div v-else class="upload-content">
                   <i class="bi bi-cloud-upload display-4 text-primary mb-3"></i>
                   <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
-                  <p class="text-muted">Formatos soportados: PDF, TXT, DOC, DOCX</p>
-                  <button class="btn btn-outline-primary" @click="triggerFileInput">
-                    <i class="bi bi-folder2-open me-2"></i>Seleccionar Archivos
+                  <p class="text-muted">Los archivos se subirán automáticamente</p>
+                  <p class="text-muted small">Formatos soportados: PDF, TXT, DOC, DOCX (máx. 10MB)</p>
+                  <button class="btn btn-outline-primary" @click="triggerFileInput" type="button" :disabled="uploading">
+                    <i class="bi bi-folder2-open me-2"></i>Seleccionar archivos
                   </button>
                 </div>
                 <input
@@ -39,6 +51,7 @@
                   accept=".pdf,.txt,.doc,.docx"
                   @change="handleFileSelect"
                   style="display: none;"
+                  :disabled="uploading"
                 >
               </div>
             </div>
@@ -52,7 +65,7 @@
           <div class="row align-items-center">
             <div class="col-md-6">
               <h5 class="card-title mb-0">
-                <i class="bi bi-files me-2"></i>Archivos Subidos
+                <i class="bi bi-files me-2"></i>Archivos subidos
                 <span class="badge bg-primary ms-2">{{ files.length }}</span>
               </h5>
             </div>
@@ -93,8 +106,6 @@
                   <th>Nombre</th>
                   <th>Tipo</th>
                   <th>Tamaño</th>
-                  <th>Estado</th>
-                  <th>Fecha Subida</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -111,26 +122,18 @@
                     </div>
                   </td>
                   <td>
-                    <span class="badge bg-secondary">{{ file.tipo.toUpperCase() }}</span>
+                    <span class="badge bg-secondary">{{ (file.tipo || '').toUpperCase() }}</span>
                   </td>
-                  <td>{{ formatFileSize(file.tamaño) }}</td>
-                  <td>
-                    <span class="badge" :class="getStatusBadgeClass(file.estado)">
-                      {{ file.estado }}
-                    </span>
-                  </td>
-                  <td>
-                    <small>{{ formatDate(file.fecha_subida) }}</small>
-                  </td>
+                  <td>{{ file.tamaño }}</td>
                   <td>
                     <div class="btn-group" role="group">
-                      <button class="btn btn-outline-primary btn-sm" @click="viewFile(file)">
-                        <i class="bi bi-eye"></i>
+                      <button class="btn btn-outline-info btn-sm" @click="downloadFile(file)" title="Descargar archivo">
+                        <i class="bi bi-download"></i>
                       </button>
-                      <button class="btn btn-outline-success btn-sm" @click="processFile(file)" :disabled="file.estado === 'procesando'">
+                      <button class="btn btn-outline-success btn-sm" @click="processFile(file)" title="Reprocesar archivo">
                         <i class="bi bi-gear"></i>
                       </button>
-                      <button class="btn btn-outline-danger btn-sm" @click="deleteFile(file)">
+                      <button class="btn btn-outline-danger btn-sm" @click="deleteFile(file)" title="Eliminar archivo">
                         <i class="bi bi-trash"></i>
                       </button>
                     </div>
@@ -148,14 +151,14 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">
-                <i class="bi bi-cloud-upload me-2"></i>Subir Archivo
+                <i class="bi bi-cloud-upload me-2"></i>Subir Archivo con opciones
               </h5>
               <button type="button" class="btn-close" @click="closeUploadModal"></button>
             </div>
             <div class="modal-body">
               <form @submit.prevent="uploadFile">
                 <div class="mb-3">
-                  <label for="file" class="form-label">Seleccionar Archivo</label>
+                  <label for="file" class="form-label">Seleccionar archivo</label>
                   <input
                     ref="modalFileInput"
                     type="file"
@@ -224,43 +227,30 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title">
-                <i class="bi bi-file-earmark me-2"></i>{{ selectedFile?.nombre }}
+                <i class="bi bi-file-earmark me-2"></i>{{ selectedFileData?.nombre }}
               </h5>
               <button type="button" class="btn-close" @click="showDetailsModal = false"></button>
             </div>
             <div class="modal-body">
-              <div v-if="selectedFile" class="file-details">
+              <div v-if="selectedFileData" class="file-details">
                 <div class="row mb-3">
                   <div class="col-md-6">
                     <h6>Información del Archivo</h6>
-                    <p class="mb-1"><strong>Nombre:</strong> {{ selectedFile.nombre }}</p>
-                    <p class="mb-1"><strong>Tipo:</strong> {{ selectedFile.tipo.toUpperCase() }}</p>
-                    <p class="mb-1"><strong>Tamaño:</strong> {{ formatFileSize(selectedFile.tamaño) }}</p>
-                    <p class="mb-1"><strong>Estado:</strong> 
-                      <span class="badge" :class="getStatusBadgeClass(selectedFile.estado)">
-                        {{ selectedFile.estado }}
-                      </span>
-                    </p>
+                    <p class="mb-1"><strong>Nombre:</strong> {{ selectedFileData.nombre }}</p>
+                    <p class="mb-1"><strong>Tipo:</strong> {{ (selectedFileData.tipo || '').toUpperCase() }}</p>
+                    <p class="mb-1"><strong>Tamaño:</strong> {{ selectedFileData.tamaño }}</p>
                   </div>
                   <div class="col-md-6">
                     <h6>Metadatos</h6>
-                    <p class="mb-1"><strong>Fecha Subida:</strong> {{ formatDate(selectedFile.fecha_subida) }}</p>
-                    <p class="mb-1"><strong>Última Modificación:</strong> {{ formatDate(selectedFile.fecha_modificacion) }}</p>
-                    <p class="mb-1"><strong>Procesado:</strong> {{ selectedFile.procesado ? 'Sí' : 'No' }}</p>
+                    <p class="mb-1"><strong>Fecha de subida:</strong> {{ formatDate(selectedFileData.fecha_subida) }}</p>
                   </div>
                 </div>
                 
-                <div v-if="selectedFile.descripcion">
+                <div v-if="selectedFileData.descripcion">
                   <h6>Descripción</h6>
-                  <p class="text-muted">{{ selectedFile.descripcion }}</p>
+                  <p class="text-muted">{{ selectedFileData.descripcion }}</p>
                 </div>
                 
-                <div v-if="selectedFile.contenido_extracto">
-                  <h6>Contenido Extraído</h6>
-                  <div class="content-preview">
-                    {{ selectedFile.contenido_extracto.substring(0, 500) }}...
-                  </div>
-                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -279,7 +269,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <h5 class="modal-title text-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
+                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar eliminación
               </h5>
               <button type="button" class="btn-close" @click="showDeleteModal = false"></button>
             </div>
@@ -311,20 +301,33 @@ import { useAuthStore } from '../../stores/auth'
 
 // Middleware para proteger la ruta
 definePageMeta({
-  middleware: 'admin',
+  middleware: ['auth', 'admin'],
   layout: 'admin'
 })
+
+// Interfaces
+interface DocumentoRAG {
+  id: number
+  nombre: string
+  tipo: string
+  tamaño: number
+  descripcion?: string
+  chunks_count?: number
+  procesado: boolean
+  fecha_subida: string
+}
 
 const config = useRuntimeConfig()
 const auth = useAuthStore()
 
 // Data
-const files = ref<any[]>([])
+const files = ref<DocumentoRAG[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 const uploading = ref(false)
 const deleting = ref(false)
 const error = ref('')
+const lastUploadTime = ref(0)
 
 // File handling
 const selectedFile = ref<File | null>(null)
@@ -335,8 +338,8 @@ const modalFileInput = ref<HTMLInputElement>()
 const showUploadModal = ref(false)
 const showDetailsModal = ref(false)
 const showDeleteModal = ref(false)
-const selectedFileData = ref<any>(null)
-const fileToDelete = ref<any>(null)
+const selectedFileData = ref<DocumentoRAG | null>(null)
+const fileToDelete = ref<DocumentoRAG | null>(null)
 
 // Upload form
 const uploadForm = reactive({
@@ -388,48 +391,80 @@ const filterFiles = () => {
 const handleDrop = (event: DragEvent) => {
   const droppedFiles = event.dataTransfer?.files
   if (droppedFiles && droppedFiles.length > 0) {
-    handleFiles(Array.from(droppedFiles))
+    const now = Date.now()
+    // Prevenir subidas muy rápidas (menos de 1 segundo)
+    if (now - lastUploadTime.value < 1000) {
+      console.log('Drop muy rápido, ignorando...')
+      return
+    }
+    lastUploadTime.value = now
+    
+    // Subir directamente sin abrir modal
+    uploadFilesDirectly(Array.from(droppedFiles))
   }
 }
 
 const handleFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
+  
   if (target.files && target.files.length > 0) {
-    handleFiles(Array.from(target.files))
+    const now = Date.now()
+    // Prevenir subidas muy rápidas (menos de 1 segundo)
+    if (now - lastUploadTime.value < 1000) {
+      console.log('⚠️ Subida muy rápida, ignorando...')
+      target.value = ''
+      return
+    }
+    lastUploadTime.value = now
+    
+    // Subir directamente sin abrir modal
+    uploadFilesDirectly(Array.from(target.files))
   }
+  // Limpiar input para permitir resubir el mismo archivo
+  target.value = ''
 }
 
 const handleModalFileSelect = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
-    selectedFile.value = target.files[0]
+    selectedFile.value = target.files[0] || null
   }
 }
 
-const handleFiles = (fileList: File[]) => {
-  if (fileList.length > 0) {
-    selectedFile.value = fileList[0]
-    showUploadModal.value = true
+const uploadFilesDirectly = async (fileList: File[]) => {
+  if (uploading.value) {
+    console.log('⚠️ Ya hay una subida en progreso, ignorando...')
+    return
   }
-}
-
-const triggerFileInput = () => {
-  fileInput.value?.click()
-}
-
-const uploadFile = async () => {
-  if (!selectedFile.value) return
   
   uploading.value = true
   error.value = ''
   
   try {
+    for (const file of fileList) {
+      await uploadSingleFileInternal(file, '', true)
+    }
+    // Recargar lista solo una vez al final
+    await loadFiles()
+  } finally {
+    uploading.value = false
+  }
+}
+
+const triggerFileInput = () => {
+  if (!uploading.value) {
+    fileInput.value?.click()
+  }
+}
+
+const uploadSingleFileInternal = async (file: File, descripcion: string = '', procesarAuto: boolean = true) => {
+  try {
     const formData = new FormData()
-    formData.append('file', selectedFile.value)
-    formData.append('descripcion', uploadForm.descripcion)
-    formData.append('procesar_automaticamente', uploadForm.procesar_automaticamente.toString())
+    formData.append('file', file)
+    formData.append('descripcion', descripcion)
+    formData.append('procesar_automaticamente', procesarAuto.toString())
     
-    const res = await fetch(`${config.public.apiBase}/api/admin/rag/upload`, {
+    const res = await fetch(`${config.public.apiBase}/api/rag/upload`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${auth.token}`
@@ -438,27 +473,57 @@ const uploadFile = async () => {
     })
     
     if (res.ok) {
-      await loadFiles()
-      closeUploadModal()
+      console.log(`Archivo "${file.name}" subido exitosamente`)
+      return true
     } else if (res.status === 401) {
       await auth.logout()
+      return false
     } else {
       const data = await res.json()
       throw new Error(data.error || data.message || 'Error al subir archivo')
     }
   } catch (err: any) {
-    error.value = err.message
+    error.value = `Error subiendo "${file.name}": ${err.message}`
+    console.error(`${error.value}`)
+    return false
+  }
+}
+
+const uploadSingleFile = async (file: File, descripcion: string = '', procesarAuto: boolean = true) => {
+  uploading.value = true
+  error.value = ''
+  
+  try {
+    const success = await uploadSingleFileInternal(file, descripcion, procesarAuto)
+    if (success) {
+      await loadFiles()
+    }
+    return success
   } finally {
     uploading.value = false
   }
 }
 
-const viewFile = (file: any) => {
+const uploadFile = async () => {
+  if (!selectedFile.value) return
+  
+  const success = await uploadSingleFile(
+    selectedFile.value,
+    uploadForm.descripcion,
+    uploadForm.procesar_automaticamente
+  )
+  
+  if (success) {
+    closeUploadModal()
+  }
+}
+
+const viewFile = (file: DocumentoRAG) => {
   selectedFileData.value = file
   showDetailsModal.value = true
 }
 
-const processFile = async (file: any) => {
+const processFile = async (file: DocumentoRAG) => {
   try {
     const res = await fetch(`${config.public.apiBase}/api/admin/rag/process/${file.id}`, {
       method: 'POST',
@@ -468,18 +533,49 @@ const processFile = async (file: any) => {
     })
     
     if (res.ok) {
+      const result = await res.json()
+      console.log('Archivo reprocesado:', result.message)
       await loadFiles()
     } else if (res.status === 401) {
       await auth.logout()
     } else {
-      throw new Error('Error al procesar archivo')
+      const errorData = await res.json()
+      throw new Error(errorData.error || 'Error al procesar archivo')
     }
   } catch (err: any) {
     error.value = err.message
   }
 }
 
-const deleteFile = (file: any) => {
+const downloadFile = async (file: any) => {
+  try {
+    const res = await fetch(`${config.public.apiBase}/api/admin/rag/files/${file.id}/download`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    
+    if (res.ok) {
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = file.nombre
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } else if (res.status === 401) {
+      await auth.logout()
+    } else {
+      throw new Error('Error al descargar archivo')
+    }
+  } catch (err: any) {
+    error.value = err.message
+  }
+}
+
+const deleteFile = (file: DocumentoRAG) => {
   fileToDelete.value = file
   showDeleteModal.value = true
 }
@@ -534,27 +630,9 @@ const getFileIcon = (tipo: string) => {
   return icons[tipo] || 'bi bi-file-earmark text-secondary'
 }
 
-const getStatusBadgeClass = (estado: string) => {
-  const statusClasses: { [key: string]: string } = {
-    'subido': 'bg-info',
-    'procesando': 'bg-warning',
-    'procesado': 'bg-success',
-    'error': 'bg-danger'
-  }
-  return statusClasses[estado] || 'bg-secondary'
-}
 
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString()
-}
+// Usar función global de formateo
+const { $formatDate: formatDate } = useNuxtApp()
 
 // Lifecycle
 onMounted(() => {
@@ -585,6 +663,14 @@ onMounted(() => {
 
 .upload-content {
   pointer-events: none;
+}
+
+.upload-content button {
+  pointer-events: auto;
+}
+
+.upload-area {
+  cursor: pointer;
 }
 
 .table th {
@@ -649,3 +735,26 @@ onMounted(() => {
   background-color: var(--bs-gray-200);
 }
 </style>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -48,3 +48,7 @@ def obtener_faq(faq_id: int):
     if not faq:
         return jsonify({'message': 'FAQ no encontrado'}), 404
     return jsonify(faq)
+
+
+
+

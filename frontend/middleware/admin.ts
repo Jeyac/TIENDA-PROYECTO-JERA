@@ -1,16 +1,49 @@
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware((to, from) => {
   const auth = useAuthStore()
   
-  // Check if user is authenticated
+  // Inicializar autenticación si no está inicializada
+  if (typeof window !== 'undefined' && !auth.token) {
+    const token = localStorage.getItem('access_token')
+    const refreshToken = localStorage.getItem('refresh_token')
+    const userStr = localStorage.getItem('user')
+
+    if (token && refreshToken && userStr) {
+      try {
+        auth.token = token
+        auth.refreshToken = refreshToken
+        auth.user = JSON.parse(userStr)
+        
+        // Iniciar refresh automático si no está ya iniciado
+        if (!auth.refreshInterval) {
+          auth.startTokenRefresh()
+        }
+      } catch (error) {
+        console.error('Error al parsear datos de usuario:', error)
+        // Limpiar datos corruptos
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+        return navigateTo('/login')
+      }
+    }
+  }
+  
+  // Verificar que esté autenticado
   if (!auth.isAuthenticated) {
     return navigateTo('/login')
   }
   
-  // Check if user is admin
-  if (!auth.isAdmin) {
+  // Verificar que sea administrador
+  const rol = auth.user?.rol
+  if (rol !== 'administrador') {
+    // Si es atención al cliente, redirigir a su panel
+    if (rol === 'atencion_cliente') {
+      return navigateTo('/atencion')
+    }
+    
     throw createError({
       statusCode: 403,
-      statusMessage: 'Acceso denegado. Se requieren permisos de administrador.'
+      statusMessage: 'Acceso denegado. Solo administradores pueden acceder a esta página.'
     })
   }
 })

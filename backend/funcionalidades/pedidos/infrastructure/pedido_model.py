@@ -1,4 +1,5 @@
 from funcionalidades.core.infraestructura.database import db
+from funcionalidades.core.infraestructura.timezone import get_guatemala_time_utc
 
 
 class PedidoModel(db.Model):
@@ -7,7 +8,8 @@ class PedidoModel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     usuario_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
     total = db.Column(db.Float, nullable=False)
-    created_at = db.Column(db.DateTime, server_default=db.func.now(), nullable=False)
+    estado = db.Column(db.String(50), nullable=False, default='pendiente')
+    created_at = db.Column(db.DateTime, default=get_guatemala_time_utc, nullable=False)
     datos_facturacion = db.Column(db.JSON, nullable=False, default=dict)
     items = db.relationship('PedidoItemModel', backref='pedido', cascade='all, delete-orphan', lazy=True)
 

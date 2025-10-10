@@ -54,8 +54,46 @@ def upload():
     titulo, contenido = TextExtractor.from_file(storage)
     if not contenido.strip():
         return jsonify({'message': 'No se pudo extraer texto'}), 400
-    doc = IngestarDocumentoUseCase(repo, embedder).ejecutar(titulo, contenido)
-    return jsonify({'id': doc.id, 'titulo': doc.titulo}), 201
+    
+    # Obtener descripción del formulario
+    descripcion = request.form.get('descripcion', '')
+    procesar_automaticamente = request.form.get('procesar_automaticamente', 'true').lower() == 'true'
+    
+    # Procesar documento usando el caso de uso (esto crea el documento Y los embeddings)
+    if procesar_automaticamente:
+        try:
+            # Usar el caso de uso para crear documento y procesar embeddings
+            doc = IngestarDocumentoUseCase(repo, embedder).ejecutar(titulo, contenido)
+            
+            # Actualizar la descripción si se proporcionó
+            if descripcion:
+                from funcionalidades.rag.infrastructure.documento_model import DocumentoModel
+                from funcionalidades.core.infraestructura.database import db
+                documento_model = DocumentoModel.query.get(doc.id)
+                if documento_model:
+                    documento_model.descripcion = descripcion
+                    db.session.commit()
+            
+            return jsonify({'id': doc.id, 'titulo': doc.titulo}), 201
+        except Exception as e:
+            print(f"Error procesando documento: {e}")
+            return jsonify({'message': 'Error procesando documento'}), 500
+    else:
+        # Solo crear el documento sin procesar embeddings
+        from funcionalidades.rag.infrastructure.documento_model import DocumentoModel
+        from funcionalidades.core.infraestructura.database import db
+        from datetime import datetime
+        
+        doc = DocumentoModel(
+            titulo=titulo,
+            contenido=contenido,
+            descripcion=descripcion,
+            created_at=datetime.utcnow()
+        )
+        db.session.add(doc)
+        db.session.commit()
+        
+        return jsonify({'id': doc.id, 'titulo': doc.titulo}), 201
 
 
 @rag_bp.get('/documentos')

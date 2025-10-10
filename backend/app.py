@@ -4,6 +4,7 @@ from datetime import timedelta
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from funcionalidades.core.infraestructura.socketio import socketio
 
 # Importar la instancia compartida de db
@@ -14,12 +15,26 @@ migrate = Migrate()
 def create_app() -> Flask:
     app = Flask(__name__)
 
+    # Configurar CORS
+    CORS(app, origins=['http://localhost:3000'], supports_credentials=True)
+
     # Configuración básica
     from funcionalidades.core.infraestructura.config import load_settings
     settings = load_settings()
 
     app.config['SQLALCHEMY_DATABASE_URI'] = settings['DATABASE_URI']
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Deshabilitar redirecciones automáticas para evitar problemas con CORS
+    app.url_map.strict_slashes = False
+    
+    # Configurar para servir archivos estáticos
+    from flask import send_from_directory
+    import os
+    
+    @app.route('/uploads/<path:filename>')
+    def uploaded_file(filename):
+        return send_from_directory(os.path.join(app.root_path, 'uploads'), filename)
 
     # JWT (simple) - clave y expiraciones en minutos
     app.config['JWT_SECRET'] = settings['JWT_SECRET']
@@ -49,6 +64,9 @@ def create_app() -> Flask:
     from funcionalidades.core.presentation.admin_controller import admin_bp
     from funcionalidades.faq.presentation.controllers import faq_bp
     from funcionalidades.categorias.presentation.controllers import categorias_bp
+    from funcionalidades.analytics.presentation.analytics_controller import analytics_bp
+    from funcionalidades.tickets.presentation.ticket_controller import ticket_bp
+    from funcionalidades.productos.presentation.image_controller import image_bp
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(productos_bp, url_prefix='/api/productos')
     app.register_blueprint(pedidos_bp, url_prefix='/api/pedidos')
@@ -58,6 +76,9 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(faq_bp, url_prefix='/api/faq')
     app.register_blueprint(categorias_bp, url_prefix='/api/categorias')
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(ticket_bp, url_prefix='/api/tickets')
+    app.register_blueprint(image_bp, url_prefix='/api/images')
 
     @app.get('/health')
     def health_check():
@@ -93,8 +114,7 @@ def create_app() -> Flask:
                         "- Pedidos: Regístrate, añade productos al carrito y confirma el pago.\n"
                         "- Envíos: 2-5 días hábiles, seguimiento por correo.\n"
                         "- Devoluciones: 30 días, producto en buen estado con ticket.\n"
-                        "- Pagos: Tarjeta, PayPal y transferencia.\n"
-                        "- Soporte: soporte@example.com, Lun-Vie 9:00-18:00.\n"
+                        "- Soporte: rox17jacome@gmail.com, Lun-Vie 9:00-18:00.\n"
                     )
                     repo = DocumentoRepositoryImpl()
                     embedder = OpenAIEmbedder()

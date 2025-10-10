@@ -14,7 +14,22 @@ type HydrationStrategies = {
 type LazyComponent<T> = (T & DefineComponent<HydrationStrategies, {}, {}, {}, {}, {}, {}, { hydrated: () => void }>)
 
 interface _GlobalComponents {
-      'NuxtWelcome': typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
+      'AvatarCircle': typeof import("../../componentes/AvatarCircle.vue")['default']
+    'BaseButton': typeof import("../../componentes/BaseButton.vue")['default']
+    'CardPanel': typeof import("../../componentes/CardPanel.vue")['default']
+    'ConfirmModal': typeof import("../../componentes/ConfirmModal.vue")['default']
+    'DataTable': typeof import("../../componentes/DataTable.vue")['default']
+    'EmptyState': typeof import("../../componentes/EmptyState.vue")['default']
+    'FilterBar': typeof import("../../componentes/FilterBar.vue")['default']
+    'InlineSpinner': typeof import("../../componentes/InlineSpinner.vue")['default']
+    'KpiCard': typeof import("../../componentes/KpiCard.vue")['default']
+    'OrderStatusBadge': typeof import("../../componentes/OrderStatusBadge.vue")['default']
+    'Paginator': typeof import("../../componentes/Paginator.vue")['default']
+    'SearchBar': typeof import("../../componentes/SearchBar.vue")['default']
+    'SectionTitle': typeof import("../../componentes/SectionTitle.vue")['default']
+    'StatusBadge': typeof import("../../componentes/StatusBadge.vue")['default']
+    'ToggleSwitch': typeof import("../../componentes/ToggleSwitch.vue")['default']
+    'NuxtWelcome': typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
     'NuxtLayout': typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
     'NuxtErrorBoundary': typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']
     'ClientOnly': typeof import("../../node_modules/nuxt/dist/app/components/client-only")['default']
@@ -38,7 +53,22 @@ interface _GlobalComponents {
     'Body': typeof import("../../node_modules/nuxt/dist/head/runtime/components")['Body']
     'NuxtIsland': typeof import("../../node_modules/nuxt/dist/app/components/nuxt-island")['default']
     'NuxtRouteAnnouncer': typeof import("../../node_modules/nuxt/dist/app/components/server-placeholder")['default']
-      'LazyNuxtWelcome': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
+      'LazyAvatarCircle': LazyComponent<typeof import("../../componentes/AvatarCircle.vue")['default']>
+    'LazyBaseButton': LazyComponent<typeof import("../../componentes/BaseButton.vue")['default']>
+    'LazyCardPanel': LazyComponent<typeof import("../../componentes/CardPanel.vue")['default']>
+    'LazyConfirmModal': LazyComponent<typeof import("../../componentes/ConfirmModal.vue")['default']>
+    'LazyDataTable': LazyComponent<typeof import("../../componentes/DataTable.vue")['default']>
+    'LazyEmptyState': LazyComponent<typeof import("../../componentes/EmptyState.vue")['default']>
+    'LazyFilterBar': LazyComponent<typeof import("../../componentes/FilterBar.vue")['default']>
+    'LazyInlineSpinner': LazyComponent<typeof import("../../componentes/InlineSpinner.vue")['default']>
+    'LazyKpiCard': LazyComponent<typeof import("../../componentes/KpiCard.vue")['default']>
+    'LazyOrderStatusBadge': LazyComponent<typeof import("../../componentes/OrderStatusBadge.vue")['default']>
+    'LazyPaginator': LazyComponent<typeof import("../../componentes/Paginator.vue")['default']>
+    'LazySearchBar': LazyComponent<typeof import("../../componentes/SearchBar.vue")['default']>
+    'LazySectionTitle': LazyComponent<typeof import("../../componentes/SectionTitle.vue")['default']>
+    'LazyStatusBadge': LazyComponent<typeof import("../../componentes/StatusBadge.vue")['default']>
+    'LazyToggleSwitch': LazyComponent<typeof import("../../componentes/ToggleSwitch.vue")['default']>
+    'LazyNuxtWelcome': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
     'LazyNuxtLayout': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>
     'LazyNuxtErrorBoundary': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-error-boundary.vue")['default']>
     'LazyClientOnly': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/client-only")['default']>

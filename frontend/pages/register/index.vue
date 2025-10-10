@@ -62,8 +62,8 @@
                     :disabled="auth.isLoading"
                   >
                   <button
-                    class="btn btn-outline-secondary"
                     type="button"
+                    class="btn btn-outline-secondary"
                     @click="showPassword = !showPassword"
                     :disabled="auth.isLoading"
                   >
@@ -90,8 +90,8 @@
                     :disabled="auth.isLoading"
                   >
                   <button
-                    class="btn btn-outline-secondary"
                     type="button"
+                    class="btn btn-outline-secondary"
                     @click="showConfirmPassword = !showConfirmPassword"
                     :disabled="auth.isLoading"
                   >
@@ -136,15 +136,16 @@
                 <i class="bi bi-check-circle me-2"></i>{{ successMessage }}
               </div>
 
-              <button
+              <BaseButton
                 type="submit"
-                class="btn btn-primary w-100 py-2 fw-semibold"
+                class="w-100 py-2 fw-semibold"
+                variant="primary"
+                :loading="auth.isLoading"
                 :disabled="auth.isLoading || !isFormValid"
               >
-                <span v-if="auth.isLoading" class="spinner-border spinner-border-sm me-2"></span>
-                <i v-else class="bi bi-person-plus me-2"></i>
+                <i v-if="!auth.isLoading" class="bi bi-person-plus me-2"></i>
                 {{ auth.isLoading ? 'Creando cuenta...' : 'Crear Cuenta' }}
-              </button>
+              </BaseButton>
             </form>
 
             <div class="auth-footer text-center mt-4">
@@ -202,7 +203,14 @@ const isFormValid = computed(() => {
 const handleRegister = async () => {
   if (!isFormValid.value) return
 
-  const result = await auth.register(form)
+  // Preparar datos para el backend (sin confirm_password)
+  const userData = {
+    username: form.username,
+    email: form.email,
+    password: form.password
+  }
+
+  const result = await auth.register(userData)
   
   if (result.success) {
     successMessage.value = result.message || 'Cuenta creada exitosamente'

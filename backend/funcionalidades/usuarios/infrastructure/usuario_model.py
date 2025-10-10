@@ -9,5 +9,6 @@ class UsuarioModel(db.Model):
     email = db.Column(db.String(255), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     rol = db.Column(db.String(32), nullable=False, default='cliente')
+    activo = db.Column(db.Boolean, nullable=False, default=True)
 
 

@@ -1021,7 +1021,7 @@ const _HEAJghGDr17GUJ2cCvPsq2cU6Gf5YtbKXgaVYYBR0os = (function(nitro) {
 
 const rootDir = "C:/Users/50256/Desktop/Proyecto final - Desarrollo Web/frontend";
 
-const appHead = {"meta":[{"name":"viewport","content":"width=device-width, initial-scale=1"},{"charset":"utf-8"}],"link":[{"rel":"stylesheet","href":"https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"},{"rel":"stylesheet","href":"https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"}],"style":[],"script":[{"src":"https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js","defer":true}],"noscript":[]};
+const appHead = {"meta":[{"name":"viewport","content":"width=device-width, initial-scale=1"},{"charset":"utf-8"}],"link":[],"style":[],"script":[],"noscript":[]};
 
 const appRootTag = "div";
 

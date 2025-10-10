@@ -7,13 +7,13 @@
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <h1 class="display-6 fw-bold mb-2">
-                <i class="bi bi-people me-2"></i>Gestión de Usuarios
+                <i class="bi bi-people me-2"></i>Gestión de usuarios
               </h1>
               <p class="text-muted mb-0">Administra los usuarios del sistema</p>
             </div>
-            <button class="btn btn-primary" @click="showCreateModal = true">
-              <i class="bi bi-person-plus me-2"></i>Nuevo Usuario
-            </button>
+            <BaseButton variant="primary" @click="showCreateModal = true">
+              <i class="bi bi-person-plus me-2"></i>Nuevo usuario
+            </BaseButton>
           </div>
         </div>
       </div>
@@ -21,27 +21,14 @@
       <!-- Users Table -->
       <div class="card border-0 shadow-sm">
         <div class="card-header bg-white border-bottom">
-          <div class="row align-items-center">
-            <div class="col-md-6">
-              <h5 class="card-title mb-0">
-                <i class="bi bi-list-ul me-2"></i>Lista de Usuarios
-              </h5>
-            </div>
-            <div class="col-md-6">
-              <div class="input-group">
-                <input
-                  v-model="searchQuery"
-                  type="text"
-                  class="form-control"
-                  placeholder="Buscar usuarios..."
-                  @input="filterUsers"
-                >
-                <button class="btn btn-outline-secondary" type="button">
-                  <i class="bi bi-search"></i>
-                </button>
-              </div>
-            </div>
-          </div>
+          <SectionTitle>
+            <template #default>
+              <i class="bi bi-list-ul me-2"></i>Lista de usuarios
+            </template>
+            <template #actions>
+              <FilterBar v-model="searchQuery" placeholder="Buscar usuarios..." @search="filterUsers" @clear="() => { searchQuery = ''; filterUsers() }" />
+            </template>
+          </SectionTitle>
         </div>
         <div class="card-body p-0">
           <div v-if="loading" class="text-center py-5">
@@ -51,55 +38,47 @@
             <p class="text-muted mt-3">Cargando usuarios...</p>
           </div>
           
-          <div v-else-if="filteredUsers.length === 0" class="text-center py-5">
-            <i class="bi bi-people text-muted" style="font-size: 4rem;"></i>
-            <h3 class="text-muted mt-3">No hay usuarios</h3>
-            <p class="text-muted">Comienza agregando el primer usuario.</p>
-          </div>
-          
-          <div v-else class="table-responsive">
-            <table class="table table-hover mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>ID</th>
-                  <th>Usuario</th>
-                  <th>Email</th>
-                  <th>Rol</th>
-                  <th>Fecha Registro</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="user in filteredUsers" :key="user.id">
-                  <td>{{ user.id }}</td>
-                  <td>
-                    <div class="d-flex align-items-center">
-                      <div class="avatar bg-primary text-white rounded-circle me-2">
-                        {{ user.username.charAt(0).toUpperCase() }}
-                      </div>
-                      <strong>{{ user.username }}</strong>
-                    </div>
-                  </td>
-                  <td>{{ user.email }}</td>
-                  <td>
-                    <span class="badge" :class="getRoleBadgeClass(user.rol)">
-                      {{ user.rol }}
-                    </span>
-                  </td>
-                  <td>{{ formatDate(user.fecha_registro) }}</td>
-                  <td>
-                    <div class="btn-group" role="group">
-                      <button class="btn btn-outline-primary btn-sm" @click="editUser(user)">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-                      <button class="btn btn-outline-danger btn-sm" @click="deleteUser(user)">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-else>
+            <DataTable
+              :items="filteredUsers"
+              :columns="[
+                { key: 'id', label: 'ID' },
+                { key: 'usuario', label: 'Usuario' },
+                { key: 'email', label: 'Email' },
+                { key: 'rol', label: 'Rol' },
+                { key: 'estado', label: 'Estado' },
+                { key: 'acciones', label: 'Acciones' }
+              ]"
+              empty-icon="bi bi-people"
+              empty-title="No hay usuarios"
+              empty-subtitle="Comienza agregando el primer usuario."
+            >
+              <template #row="{ row: user }">
+                <td>{{ user.id }}</td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <AvatarCircle :text="user.username" size="sm" class="me-2" />
+                    <strong>{{ user.username }}</strong>
+                  </div>
+                </td>
+                <td>{{ user.email }}</td>
+                <td>
+                  <span class="badge" :class="getRoleBadgeClass(user.rol)">
+                    {{ formatRoleName(user.rol) }}
+                  </span>
+                </td>
+                <td>
+                  <StatusBadge :status="user.activo ? 'activo' : 'inactivo'" />
+                </td>
+                <td>
+                  <div class="btn-group" role="group">
+                    <BaseButton variant="outline-primary" class="btn-sm" @click="editUser(user)">
+                      <i class="bi bi-pencil"></i>
+                    </BaseButton>
+                  </div>
+                </td>
+              </template>
+            </DataTable>
           </div>
         </div>
       </div>
@@ -119,7 +98,7 @@
               <form @submit.prevent="saveUser">
                 <div class="row g-3">
                   <div class="col-md-6">
-                    <label for="username" class="form-label">Nombre de Usuario</label>
+                    <label for="username" class="form-label">Nombre de usuario</label>
                     <input
                       v-model="userForm.username"
                       type="text"
@@ -145,14 +124,24 @@
                       Contraseña
                       <small class="text-muted">(dejar vacío para mantener actual)</small>
                     </label>
-                    <input
-                      v-model="userForm.password"
-                      type="password"
-                      class="form-control"
-                      id="password"
-                      :required="!editingUser"
-                      :disabled="saving"
-                    >
+                    <div class="input-group">
+                      <input
+                        v-model="userForm.password"
+                        :type="showPassword ? 'text' : 'password'"
+                        class="form-control"
+                        id="password"
+                        :required="!editingUser"
+                        :disabled="saving"
+                      >
+                      <button
+                        type="button"
+                        class="btn btn-outline-secondary"
+                        @click="togglePasswordVisibility"
+                        :disabled="saving"
+                      >
+                        <i :class="showPassword ? 'bi bi-eye-slash' : 'bi bi-eye'"></i>
+                      </button>
+                    </div>
                   </div>
                   <div class="col-md-6">
                     <label for="rol" class="form-label">Rol</label>
@@ -165,7 +154,23 @@
                     >
                       <option value="cliente">Cliente</option>
                       <option value="administrador">Administrador</option>
+                      <option value="atencion_cliente">Atención al cliente</option>
                     </select>
+                  </div>
+                  
+                  <div class="col-12" v-if="editingUser">
+                    <div class="form-check">
+                      <input
+                        v-model="userForm.activo"
+                        class="form-check-input"
+                        type="checkbox"
+                        id="activo"
+                        :disabled="saving"
+                      >
+                      <label class="form-check-label" for="activo">
+                        Usuario activo
+                      </label>
+                    </div>
                   </div>
                 </div>
                 
@@ -174,13 +179,12 @@
                 </div>
                 
                 <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" @click="closeModal" :disabled="saving">
+                  <BaseButton variant="secondary" @click="closeModal" :disabled="saving">
                     Cancelar
-                  </button>
-                  <button type="submit" class="btn btn-primary" :disabled="saving">
-                    <span v-if="saving" class="spinner-border spinner-border-sm me-2"></span>
+                  </BaseButton>
+                  <BaseButton variant="primary" type="submit" :loading="saving" :disabled="saving">
                     {{ saving ? 'Guardando...' : 'Guardar' }}
-                  </button>
+                  </BaseButton>
                 </div>
               </form>
             </div>
@@ -190,32 +194,6 @@
       <div v-if="showCreateModal || showEditModal" class="modal-backdrop fade show"></div>
 
       <!-- Delete Confirmation Modal -->
-      <div class="modal fade" :class="{ show: showDeleteModal }" :style="{ display: showDeleteModal ? 'block' : 'none' }" tabindex="-1">
-        <div class="modal-dialog">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title text-danger">
-                <i class="bi bi-exclamation-triangle me-2"></i>Confirmar Eliminación
-              </h5>
-              <button type="button" class="btn-close" @click="showDeleteModal = false"></button>
-            </div>
-            <div class="modal-body">
-              <p>¿Estás seguro de que deseas eliminar al usuario <strong>{{ userToDelete?.username }}</strong>?</p>
-              <p class="text-muted small">Esta acción no se puede deshacer.</p>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary" @click="showDeleteModal = false">
-                Cancelar
-              </button>
-              <button type="button" class="btn btn-danger" @click="confirmDelete" :disabled="deleting">
-                <span v-if="deleting" class="spinner-border spinner-border-sm me-2"></span>
-                {{ deleting ? 'Eliminando...' : 'Eliminar' }}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div v-if="showDeleteModal" class="modal-backdrop fade show"></div>
     </div>
   </div>
 </template>
@@ -227,11 +205,11 @@ import { useAuthStore } from '../../stores/auth'
 
 // Middleware para proteger la ruta
 definePageMeta({
-  middleware: 'admin',
+  middleware: ['auth', 'admin'],
   layout: 'admin'
 })
 
-const config = useRuntimeConfig()
+const { apiRequest } = useApi()
 const auth = useAuthStore()
 
 // Data
@@ -239,22 +217,21 @@ const users = ref<any[]>([])
 const searchQuery = ref('')
 const loading = ref(false)
 const saving = ref(false)
-const deleting = ref(false)
 const error = ref('')
 
 // Modal states
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
-const showDeleteModal = ref(false)
 const editingUser = ref<any>(null)
-const userToDelete = ref<any>(null)
+const showPassword = ref(false)
 
 // Form data
 const userForm = reactive({
   username: '',
   email: '',
   password: '',
-  rol: 'cliente'
+  rol: 'cliente',
+  activo: true
 })
 
 // Computed
@@ -275,16 +252,10 @@ const loadUsers = async () => {
   error.value = ''
   
   try {
-    const res = await fetch(`${config.public.apiBase}/api/admin/usuarios/`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
+    const res = await apiRequest('/api/admin/usuarios/')
     
     if (res.ok) {
       users.value = await res.json()
-    } else if (res.status === 401) {
-      await auth.logout()
     } else {
       throw new Error('Error al cargar usuarios')
     }
@@ -293,6 +264,10 @@ const loadUsers = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value
 }
 
 const filterUsers = () => {
@@ -305,13 +280,10 @@ const editUser = (user: any) => {
   userForm.email = user.email
   userForm.password = ''
   userForm.rol = user.rol
+  userForm.activo = user.activo
   showEditModal.value = true
 }
 
-const deleteUser = (user: any) => {
-  userToDelete.value = user
-  showDeleteModal.value = true
-}
 
 const saveUser = async () => {
   saving.value = true
@@ -319,8 +291,8 @@ const saveUser = async () => {
   
   try {
     const url = editingUser.value 
-      ? `${config.public.apiBase}/api/admin/usuarios/${editingUser.value.id}`
-      : `${config.public.apiBase}/api/admin/usuarios/`
+      ? `/api/admin/usuarios/${editingUser.value.id}`
+      : `/api/admin/usuarios/`
     
     const method = editingUser.value ? 'PUT' : 'POST'
     
@@ -334,11 +306,17 @@ const saveUser = async () => {
       body.password = userForm.password
     }
     
-    const res = await fetch(url, {
+    // Solo enviar activo si estamos editando un usuario existente
+    if (editingUser.value) {
+      body.activo = userForm.activo
+    }
+    
+    console.log('Enviando datos del usuario:', body)
+    
+    const res = await apiRequest(url, {
       method,
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${auth.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     })
@@ -346,8 +324,6 @@ const saveUser = async () => {
     if (res.ok) {
       await loadUsers()
       closeModal()
-    } else if (res.status === 401) {
-      await auth.logout()
     } else {
       const data = await res.json()
       throw new Error(data.error || data.message || 'Error al guardar usuario')
@@ -359,53 +335,48 @@ const saveUser = async () => {
   }
 }
 
-const confirmDelete = async () => {
-  if (!userToDelete.value) return
-  
-  deleting.value = true
-  
-  try {
-    const res = await fetch(`${config.public.apiBase}/api/admin/usuarios/${userToDelete.value.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    
-    if (res.ok) {
-      await loadUsers()
-      showDeleteModal.value = false
-      userToDelete.value = null
-    } else if (res.status === 401) {
-      await auth.logout()
-    } else {
-      throw new Error('Error al eliminar usuario')
-    }
-  } catch (err: any) {
-    error.value = err.message
-  } finally {
-    deleting.value = false
-  }
-}
 
 const closeModal = () => {
   showCreateModal.value = false
   showEditModal.value = false
   editingUser.value = null
+  showPassword.value = false
   userForm.username = ''
   userForm.email = ''
   userForm.password = ''
   userForm.rol = 'cliente'
+  userForm.activo = true
   error.value = ''
 }
 
 const getRoleBadgeClass = (rol: string) => {
-  return rol === 'administrador' ? 'bg-danger' : 'bg-primary'
+  switch (rol) {
+    case 'administrador':
+      return 'bg-danger'
+    case 'atencion_cliente':
+      return 'bg-warning'
+    case 'cliente':
+      return 'bg-primary'
+    default:
+      return 'bg-secondary'
+  }
 }
 
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString()
+const formatRoleName = (rol: string) => {
+  switch (rol) {
+    case 'administrador':
+      return 'Administrador'
+    case 'atencion_cliente':
+      return 'Atención al Cliente'
+    case 'cliente':
+      return 'Cliente'
+    default:
+      return rol
+  }
 }
+
+// Usar función global de formateo
+const { $formatDate: formatDate } = useNuxtApp()
 
 // Lifecycle
 onMounted(() => {
