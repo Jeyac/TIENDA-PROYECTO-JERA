@@ -9,11 +9,28 @@ from funcionalidades.chatlog.application.conversation_service import Conversatio
 from funcionalidades.core.infraestructura.database import db
 
 
-gateway = ChatGateway()
-conversation_service = ConversationService()
+# Inicializar gateway y servicios dentro del contexto de la aplicación
+gateway = None
+conversation_service = None
 SESSIONS: Dict[str, List[dict]] = {}
 # Almacenar información de usuario por sesión
 USER_SESSIONS: Dict[str, int] = {}  # sid -> user_id
+
+def get_gateway():
+    """Obtener gateway inicializado dentro del contexto de la aplicación"""
+    global gateway
+    if gateway is None:
+        from flask import current_app
+        with current_app.app_context():
+            gateway = ChatGateway()
+    return gateway
+
+def get_conversation_service():
+    """Obtener servicio de conversación inicializado"""
+    global conversation_service
+    if conversation_service is None:
+        conversation_service = ConversationService()
+    return conversation_service
 
 
 def get_user_id_from_token(auth_data=None):
@@ -61,6 +78,16 @@ def on_connect(auth=None):
         socketio.emit('error', {'message': 'Debes iniciar sesión para usar el chat'}, room=sid)
         return False  # Rechazar la conexión
     
+    # Verificar si es admin
+    from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+    with current_app.app_context():
+        user = UsuarioModel.query.get(user_id)
+        if user and user.rol == 'administrador':
+            print(f"⚠️  CHAT SOCKET: ADMIN CONECTÁNDOSE AL CHAT! Usuario: {user.username} (ID: {user_id})")
+            print(f"⚠️  CHAT SOCKET: El admin no debería acceder al chat de soporte")
+        else:
+            print(f"✅ CHAT SOCKET: Usuario cliente conectándose: {user.username if user else 'Usuario'} (ID: {user_id})")
+    
     print(f"Usuario autenticado con ID: {user_id}, aceptando conexión")
     SESSIONS[sid] = []
     USER_SESSIONS[sid] = user_id  # Almacenar user_id para esta sesión
@@ -100,23 +127,33 @@ def on_ask(data):
         socketio.emit('error', {'message': 'Sesión expirada. Por favor, recarga la página.'})
         return
     
+    # Verificar si es admin enviando mensaje
+    from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+    with current_app.app_context():
+        user = UsuarioModel.query.get(user_id)
+        if user and user.rol == 'administrador':
+            print(f"⚠️  CHAT SOCKET: ADMIN ENVIANDO MENSAJE! Usuario: {user.username} (ID: {user_id})")
+            print(f"⚠️  CHAT SOCKET: Mensaje: {message}")
+        else:
+            print(f"✅ CHAT SOCKET: Usuario cliente enviando mensaje: {user.username if user else 'Usuario'} (ID: {user_id})")
+    
     print(f"Procesando mensaje de usuario {user_id}: {message}")
     
     # Asegurar contexto de aplicación para operaciones con SQLAlchemy
     with current_app.app_context():
         
         # Obtener o crear conversación activa
-        conversation = conversation_service.get_or_create_conversation(user_id=user_id)
+        conversation = get_conversation_service().get_or_create_conversation(user_id=user_id)
         
         # Obtener historial de la conversación
-        history_messages = conversation_service.get_conversation_messages(conversation.id, limit=20)
+        history_messages = get_conversation_service().get_conversation_messages(conversation.id, limit=20)
         history = [{"role": msg['role'], "content": msg['content']} for msg in history_messages]
         
         # Agregar mensaje actual
         history.append({"role": "user", "content": message})
         
         # Guardar mensaje del usuario
-        conversation_service.add_message(
+        get_conversation_service().add_message(
             conversation_id=conversation.id,
             role='user',
             content=message,
@@ -124,10 +161,10 @@ def on_ask(data):
         )
         
         # Generar respuesta
-        answer = gateway.answer(message, history=history)
+        answer = get_gateway().answer(message, history=history)
         
         # Guardar respuesta del bot
-        conversation_service.add_message(
+        get_conversation_service().add_message(
             conversation_id=conversation.id,
             role='assistant',
             content=answer,

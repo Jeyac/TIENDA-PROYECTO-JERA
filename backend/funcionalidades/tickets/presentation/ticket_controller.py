@@ -1,11 +1,26 @@
 from flask import Blueprint, jsonify, request, make_response, current_app
 from funcionalidades.core.infraestructura.auth import jwt_required
-from funcionalidades.tickets.application.ticket_service import TicketService
+from funcionalidades.tickets.application.use_cases.crear_ticket_use_case import CrearTicketUseCase
+from funcionalidades.tickets.application.use_cases.crear_ticket_desde_conversacion_use_case import CrearTicketDesdeConversacionUseCase
+from funcionalidades.tickets.application.use_cases.actualizar_estado_ticket_use_case import ActualizarEstadoTicketUseCase
+from funcionalidades.tickets.application.use_cases.asignar_ticket_use_case import AsignarTicketUseCase
+from funcionalidades.tickets.application.use_cases.obtener_ticket_use_case import ObtenerTicketUseCase
+from funcionalidades.tickets.application.use_cases.listar_tickets_use_case import ListarTicketsUseCase
+from funcionalidades.tickets.application.use_cases.agregar_actividad_ticket_use_case import AgregarActividadTicketUseCase
+from funcionalidades.tickets.infrastructure.ticket_repository_impl import TicketRepositoryImpl
+from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
 
 ticket_bp = Blueprint('tickets', __name__)
 
-# Instancia del servicio
-ticket_service = TicketService()
+# Inicializar casos de uso
+ticket_repository = TicketRepositoryImpl()
+crear_ticket_use_case = CrearTicketUseCase(ticket_repository)
+crear_ticket_desde_conversacion_use_case = CrearTicketDesdeConversacionUseCase(ticket_repository)
+actualizar_estado_ticket_use_case = ActualizarEstadoTicketUseCase(ticket_repository)
+asignar_ticket_use_case = AsignarTicketUseCase(ticket_repository)
+obtener_ticket_use_case = ObtenerTicketUseCase(ticket_repository)
+listar_tickets_use_case = ListarTicketsUseCase(ticket_repository)
+agregar_actividad_ticket_use_case = AgregarActividadTicketUseCase(ticket_repository)
 
 @ticket_bp.before_request
 def tickets_preflight_handler():
@@ -46,9 +61,29 @@ def get_all_tickets():
     """Obtener todos los tickets (admin)"""
     try:
         status_filter = request.args.get('status')
-        tickets = ticket_service.get_all_tickets(status_filter)
+        with current_app.app_context():
+            tickets = listar_tickets_use_case.ejecutar(status=status_filter)
         
-        return jsonify(tickets)
+        # Convertir entidades a diccionarios para JSON
+        tickets_data = []
+        for ticket in tickets:
+            tickets_data.append({
+                'id': ticket.id,
+                'user_id': ticket.user_id,
+                'conversation_id': ticket.conversation_id,
+                'title': ticket.title,
+                'description': ticket.description,
+                'status': ticket.status,
+                'priority': ticket.priority,
+                'category': ticket.category,
+                'assigned_to': ticket.assigned_to,
+                'resolution': ticket.resolution,
+                'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
+                'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None
+            })
+        
+        return jsonify(tickets_data)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -62,9 +97,34 @@ def get_my_tickets():
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         user_id = get_current_user_id()
         
-        tickets = ticket_service.get_user_tickets(user_id)
+        # Ejecutar dentro del contexto de la aplicación
+        with current_app.app_context():
+            tickets = listar_tickets_use_case.ejecutar(user_id=user_id)
+            
+            # Convertir entidades a diccionarios para JSON
+            tickets_data = []
+            for ticket in tickets:
+                # Obtener información adicional del modelo para nombres de usuario
+                ticket_model = TicketModel.query.get(ticket.id)
+                
+                tickets_data.append({
+                    'id': ticket.id,
+                    'user_id': ticket.user_id,
+                    'conversation_id': ticket.conversation_id,
+                    'title': ticket.title,
+                    'description': ticket.description,
+                    'status': ticket.status,
+                    'priority': ticket.priority,
+                    'category': ticket.category,
+                    'assigned_to': ticket.assigned_to,
+                    'resolution': ticket.resolution,
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                    'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
+                    'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
+                    'assignee_name': ticket_model.assignee.username if ticket_model and ticket_model.assignee else None
+                })
         
-        return jsonify(tickets)
+        return jsonify(tickets_data)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -79,9 +139,39 @@ def get_assigned_tickets():
         user_id = get_current_user_id()
         
         status_filter = request.args.get('status')
-        tickets = ticket_service.get_assigned_tickets(user_id, status_filter)
+        with current_app.app_context():
+            if status_filter:
+                # Filtrar por estado y asignado
+                all_tickets = listar_tickets_use_case.ejecutar(status=status_filter)
+                tickets = [t for t in all_tickets if t.assigned_to == user_id]
+            else:
+                tickets = listar_tickets_use_case.ejecutar(assigned_to=user_id)
+            
+            # Convertir entidades a diccionarios para JSON
+            tickets_data = []
+            for ticket in tickets:
+                # Obtener información adicional del modelo para nombres de usuario
+                ticket_model = TicketModel.query.get(ticket.id)
+                
+                tickets_data.append({
+                    'id': ticket.id,
+                    'user_id': ticket.user_id,
+                    'conversation_id': ticket.conversation_id,
+                    'title': ticket.title,
+                    'description': ticket.description,
+                    'status': ticket.status,
+                    'priority': ticket.priority,
+                    'category': ticket.category,
+                    'assigned_to': ticket.assigned_to,
+                    'resolution': ticket.resolution,
+                    'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+                    'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
+                    'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
+                    'assignee_name': ticket_model.assignee.username if ticket_model and ticket_model.assignee else None,
+                    'user_name': ticket_model.user.username if ticket_model and ticket_model.user else 'Usuario anónimo'
+                })
         
-        return jsonify(tickets)
+        return jsonify(tickets_data)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -105,13 +195,14 @@ def create_ticket():
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         user_id = get_current_user_id()
         
-        ticket = ticket_service.create_manual_ticket(
-            user_id=user_id,
-            title=data['title'],
-            description=data.get('description', ''),
-            priority=data.get('priority', 'media'),
-            category=data.get('category', 'soporte')
-        )
+        with current_app.app_context():
+            ticket = crear_ticket_use_case.ejecutar(
+                user_id=user_id,
+                title=data['title'],
+                description=data.get('description', ''),
+                priority=data.get('priority', 'media'),
+                category=data.get('category', 'soporte')
+            )
         
         return jsonify({
             'id': ticket.id,
@@ -129,12 +220,10 @@ def create_ticket():
 def get_ticket(ticket_id):
     """Obtener ticket específico"""
     try:
-        from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         
-        ticket = TicketModel.query.get(ticket_id)
-        if not ticket:
-            return jsonify({'error': 'Ticket no encontrado'}), 404
+        with current_app.app_context():
+            ticket = obtener_ticket_use_case.ejecutar(ticket_id)
         
         # Verificar permisos
         current_user_id = get_current_user_id()
@@ -154,6 +243,10 @@ def get_ticket(ticket_id):
         if not can_access:
             return jsonify({'error': 'No tienes permisos para ver este ticket'}), 403
         
+        # Obtener información adicional del modelo para nombres de usuario
+        from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
+        ticket_model = TicketModel.query.get(ticket_id)
+        
         ticket_data = {
             'id': ticket.id,
             'title': ticket.title,
@@ -162,12 +255,12 @@ def get_ticket(ticket_id):
             'priority': ticket.priority,
             'category': ticket.category,
             'assigned_to': ticket.assigned_to,
-            'created_at': ticket.created_at.isoformat(),
-            'updated_at': ticket.updated_at.isoformat(),
+            'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
+            'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
             'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
             'resolution': ticket.resolution,
-            'user_name': ticket.user.username if ticket.user else 'Usuario anónimo',
-            'assignee_name': ticket.assignee.username if ticket.assignee else None
+            'user_name': ticket_model.user.username if ticket_model.user else 'Usuario anónimo',
+            'assignee_name': ticket_model.assignee.username if ticket_model.assignee else None
         }
         
         return jsonify(ticket_data)
@@ -189,12 +282,13 @@ def update_ticket_status(ticket_id):
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         user_id = get_current_user_id()
         
-        ticket = ticket_service.update_ticket_status(
-            ticket_id=ticket_id,
-            new_status=data['status'],
-            user_id=user_id,
-            resolution=data.get('resolution')
-        )
+        with current_app.app_context():
+            ticket = actualizar_estado_ticket_use_case.ejecutar(
+                ticket_id=ticket_id,
+                new_status=data['status'],
+                user_id=user_id,
+                resolution=data.get('resolution')
+            )
         
         return jsonify({
             'id': ticket.id,
@@ -219,11 +313,12 @@ def assign_ticket(ticket_id):
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         user_id = get_current_user_id()
         
-        ticket = ticket_service.assign_ticket(
-            ticket_id=ticket_id,
-            assignee_id=data['assignee_id'],
-            user_id=user_id
-        )
+        with current_app.app_context():
+            ticket = asignar_ticket_use_case.ejecutar(
+                ticket_id=ticket_id,
+                assigned_to=data['assignee_id'],
+                user_id=user_id
+            )
         
         return jsonify({
             'id': ticket.id,
@@ -240,21 +335,32 @@ def assign_ticket(ticket_id):
 def get_ticket_activities(ticket_id):
     """Obtener actividades de un ticket"""
     try:
-        from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         
-        ticket = TicketModel.query.get(ticket_id)
-        if not ticket:
-            return jsonify({'error': 'Ticket no encontrado'}), 404
+        ticket = obtener_ticket_use_case.ejecutar(ticket_id)
         
         # Verificar permisos
         current_user_id = get_current_user_id()
         if ticket.user_id != current_user_id and ticket.assigned_to != current_user_id and not request.headers.get('X-Admin-Request'):
             return jsonify({'error': 'No tienes permisos para ver este ticket'}), 403
         
-        activities = ticket_service.get_ticket_activities(ticket_id)
+        activities = ticket_repository.get_actividades_by_ticket_id(ticket_id)
         
-        return jsonify(activities)
+        # Convertir entidades a diccionarios para JSON
+        activities_data = []
+        for activity in activities:
+            activities_data.append({
+                'id': activity.id,
+                'ticket_id': activity.ticket_id,
+                'user_id': activity.user_id,
+                'activity_type': activity.activity_type,
+                'description': activity.description,
+                'old_value': activity.old_value,
+                'new_value': activity.new_value,
+                'created_at': activity.created_at.isoformat() if activity.created_at else None
+            })
+        
+        return jsonify(activities_data)
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -271,17 +377,14 @@ def add_ticket_message(ticket_id):
             return jsonify({'error': 'Mensaje requerido'}), 400
         
         from funcionalidades.core.infraestructura.auth import get_current_user_id
-        from funcionalidades.tickets.infrastructure.ticket_model import TicketModel, TicketActivityModel
         from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
-        from funcionalidades.core.infraestructura.database import db
         
         user_id = get_current_user_id()
         user = UsuarioModel.query.get(user_id)
         
         # Verificar que el ticket existe
-        ticket = TicketModel.query.get(ticket_id)
-        if not ticket:
-            return jsonify({'error': 'Ticket no encontrado'}), 404
+        with current_app.app_context():
+            ticket = obtener_ticket_use_case.ejecutar(ticket_id)
         
         # Verificar permisos: debe ser el creador del ticket o el asignado
         if user.rol == 'cliente' and ticket.user_id != user_id:
@@ -290,16 +393,14 @@ def add_ticket_message(ticket_id):
         if user.rol == 'atencion_cliente' and ticket.assigned_to != user_id:
             return jsonify({'error': 'Este ticket no está asignado a ti'}), 403
         
-        # Crear actividad de mensaje
-        activity = TicketActivityModel(
-            ticket_id=ticket_id,
-            user_id=user_id,
-            activity_type='message',
-            description=data['message']
-        )
-        
-        db.session.add(activity)
-        db.session.commit()
+        # Crear actividad de mensaje usando el caso de uso
+        with current_app.app_context():
+            activity = agregar_actividad_ticket_use_case.ejecutar(
+                ticket_id=ticket_id,
+                user_id=user_id,
+                activity_type='commented',
+                description=data['message']
+            )
         
         return jsonify({
             'id': activity.id,
@@ -312,12 +413,11 @@ def add_ticket_message(ticket_id):
                 'user_rol': user.rol,
                 'activity_type': activity.activity_type,
                 'description': activity.description,
-                'created_at': activity.created_at.isoformat()
+                'created_at': activity.created_at.isoformat() if activity.created_at else None
             }
         }), 201
         
     except Exception as e:
-        db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
 
@@ -331,14 +431,15 @@ def create_ticket_from_conversation(conversation_id):
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         user_id = get_current_user_id()
         
-        ticket = ticket_service.create_ticket_from_conversation(
-            conversation_id=conversation_id,
-            user_id=user_id,
-            title=data.get('title'),
-            description=data.get('description'),
-            priority=data.get('priority', 'media'),
-            category=data.get('category', 'soporte')
-        )
+        with current_app.app_context():
+            ticket = crear_ticket_desde_conversacion_use_case.ejecutar(
+                conversation_id=conversation_id,
+                user_id=user_id,
+                title=data.get('title'),
+                description=data.get('description'),
+                priority=data.get('priority', 'media'),
+                category=data.get('category', 'soporte')
+            )
         
         return jsonify({
             'id': ticket.id,

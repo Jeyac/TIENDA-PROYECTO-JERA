@@ -49,10 +49,10 @@
                 <div v-for="(tema, index) in conversationAnalytics.temas_mas_preguntados" :key="index" class="list-group-item px-0 border-0">
                   <div class="d-flex justify-content-between align-items-center">
                     <div>
-                      <h6 class="mb-1 text-capitalize">{{ tema.tema }}</h6>
+                      <h6 class="mb-1 text-capitalize">{{ tema.palabra }}</h6>
                     </div>
                     <div class="text-end">
-                      <span class="badge bg-info">{{ tema.cantidad }} preguntas</span>
+                      <span class="badge bg-info">{{ tema.frecuencia }} veces</span>
                     </div>
                   </div>
                 </div>
@@ -78,10 +78,10 @@
                 <div v-for="(respuesta, index) in conversationAnalytics.respuestas_mas_frecuentes" :key="index" class="list-group-item px-0 border-0">
                   <div class="d-flex justify-content-between align-items-start">
                     <div class="flex-grow-1">
-                      <p class="mb-1 small text-muted">{{ respuesta.content.length > 80 ? respuesta.content.substring(0, 80) + '...' : respuesta.content }}</p>
+                      <p class="mb-1 small text-muted">{{ respuesta.respuesta.length > 80 ? respuesta.respuesta.substring(0, 80) + '...' : respuesta.respuesta }}</p>
                     </div>
                     <div class="text-end ms-2">
-                      <span class="badge bg-success">{{ respuesta.count }} veces</span>
+                      <span class="badge bg-success">{{ respuesta.frecuencia }} veces</span>
                     </div>
                   </div>
                 </div>
@@ -214,13 +214,37 @@ const loadData = async () => {
 
     // Load conversation analytics
     try {
+      console.log('🔍 FRONTEND: Cargando analytics de conversaciones...')
       const conversationUrl = `${config.public.apiBase}/api/analytics/conversations`
+      console.log('🔍 FRONTEND: URL:', conversationUrl)
+      
       const conversationData = await $fetch<any>(conversationUrl, { 
         headers: { 'Authorization': `Bearer ${auth.token}` } 
       })
+      
+      console.log('📊 FRONTEND: Datos recibidos:', conversationData)
+      console.log('📊 FRONTEND: Temas más preguntados:', conversationData.temas_mas_preguntados)
+      console.log('📊 FRONTEND: Total temas:', conversationData.temas_mas_preguntados?.length || 0)
+      
+      if (conversationData.temas_mas_preguntados && conversationData.temas_mas_preguntados.length > 0) {
+        console.log('📊 FRONTEND: Estructura del primer tema:', conversationData.temas_mas_preguntados[0])
+        console.log('📊 FRONTEND: Campos disponibles:', Object.keys(conversationData.temas_mas_preguntados[0]))
+      }
+      
+      console.log('📊 FRONTEND: Respuestas más frecuentes:', conversationData.respuestas_mas_frecuentes)
+      console.log('📊 FRONTEND: Total respuestas:', conversationData.respuestas_mas_frecuentes?.length || 0)
+      
+      if (conversationData.respuestas_mas_frecuentes && conversationData.respuestas_mas_frecuentes.length > 0) {
+        console.log('📊 FRONTEND: Estructura de la primera respuesta:', conversationData.respuestas_mas_frecuentes[0])
+        console.log('📊 FRONTEND: Campos disponibles en respuesta:', Object.keys(conversationData.respuestas_mas_frecuentes[0]))
+      }
+      
       conversationAnalytics.value = conversationData
+      console.log('✅ FRONTEND: Analytics cargados correctamente')
     } catch (e: any) {
-      console.error('Error cargando analítica de conversaciones:', e)
+      console.error('❌ FRONTEND ERROR: Error cargando analítica de conversaciones:', e)
+      console.error('❌ FRONTEND ERROR: Status:', e?.statusCode)
+      console.error('❌ FRONTEND ERROR: Message:', e?.message)
       if (e?.statusCode === 401) {
         await auth.logout()
       }

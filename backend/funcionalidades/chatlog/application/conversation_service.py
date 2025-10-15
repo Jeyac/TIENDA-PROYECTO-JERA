@@ -23,6 +23,24 @@ class ConversationService:
         ).first()
         
         if not conversation:
+            # Cerrar todas las conversaciones anteriores del usuario para mantener historial
+            if user_id:
+                previous_conversations = ConversationModel.query.filter_by(
+                    user_id=user_id,
+                    is_active=True
+                ).all()
+                for prev_conv in previous_conversations:
+                    prev_conv.is_active = False
+                    print(f"🔒 Cerrando conversación anterior {prev_conv.id} del usuario {user_id}")
+            elif session_id:
+                previous_conversations = ConversationModel.query.filter_by(
+                    session_id=session_id,
+                    is_active=True
+                ).all()
+                for prev_conv in previous_conversations:
+                    prev_conv.is_active = False
+                    print(f"🔒 Cerrando conversación anterior {prev_conv.id} de sesión {session_id}")
+            
             # Crear nueva conversación
             conversation = ConversationModel(
                 user_id=user_id,
@@ -32,6 +50,7 @@ class ConversationService:
             )
             db.session.add(conversation)
             db.session.commit()
+            print(f"✅ Nueva conversación {conversation.id} creada para usuario {user_id or 'anónimo'}")
         
         return conversation
     
@@ -155,32 +174,14 @@ class ConversationService:
             else:
                 conversation.summary = summary
             
-            # Limpiar mensajes antiguos (mantener solo los últimos 5)
-            old_messages = ChatMessageModel.query.filter_by(
-                conversation_id=conversation.id
-            ).order_by(ChatMessageModel.created_at.asc()).limit(
-                conversation.message_count - 5
-            ).all()
-            
-            for msg in old_messages:
-                db.session.delete(msg)
-            
-            # Actualizar contador
-            conversation.message_count = 5
+            # NO eliminar mensajes antiguos - mantener todo el historial
+            # Esto permite que los analytics tengan acceso a todos los temas preguntados
+            print(f"Resumen generado para conversación {conversation.id} con {conversation.message_count} mensajes. Historial completo preservado.")
             
         except Exception as e:
             print(f"Error generando resumen: {e}")
-            # Si falla el resumen, solo limpiar mensajes antiguos
-            old_messages = ChatMessageModel.query.filter_by(
-                conversation_id=conversation.id
-            ).order_by(ChatMessageModel.created_at.asc()).limit(
-                conversation.message_count - 5
-            ).all()
-            
-            for msg in old_messages:
-                db.session.delete(msg)
-            
-            conversation.message_count = 5
+            # En caso de error, tampoco eliminar mensajes para preservar el historial
+            print(f"Error en resumen para conversación {conversation.id}, pero historial preservado.")
     
     def _generate_simple_summary(self, context: str) -> str:
         """Generar resumen simple de la conversación"""

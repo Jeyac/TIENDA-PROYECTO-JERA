@@ -1,2 +1,1 @@
-# chatlog domain
-
+# Domain layer for chatlog module

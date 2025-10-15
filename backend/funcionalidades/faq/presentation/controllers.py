@@ -1,53 +1,75 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
+from funcionalidades.faq.application.use_cases.listar_faq_use_case import ListarFAQUseCase
+from funcionalidades.faq.application.use_cases.obtener_faq_use_case import ObtenerFAQUseCase
+from funcionalidades.faq.application.use_cases.buscar_faq_use_case import BuscarFAQUseCase
+from funcionalidades.faq.infrastructure.faq_repository_impl import FAQRepositoryImpl
 
 faq_bp = Blueprint('faq', __name__)
 
-# Preguntas frecuentes estáticas
-FAQ_DATA = [
-    {
-        "id": 1,
-        "pregunta": "¿Cuáles son los métodos de envío disponibles?",
-        "respuesta": "Ofrecemos envío estándar (3-5 días hábiles) y envío express (1-2 días hábiles). Los costos varían según el destino y peso del paquete."
-    },
-    {
-        "id": 2,
-        "pregunta": "¿Cuánto tiempo tengo para devolver un producto?",
-        "respuesta": "Tienes 30 días calendario desde la fecha de entrega para devolver cualquier producto en perfecto estado. El producto debe estar en su empaque original."
-    },
-    {
-        "id": 3,
-        "pregunta": "¿Cómo puedo rastrear mi pedido?",
-        "respuesta": "Una vez que tu pedido sea enviado, recibirás un email con el número de seguimiento. También puedes consultar el estado en tu cuenta."
-    },
-    {
-        "id": 4,
-        "pregunta": "¿Qué métodos de pago aceptan?",
-        "respuesta": "Aceptamos tarjetas de crédito/débito (Visa, Mastercard, American Express), PayPal y transferencias bancarias."
-    },
-    {
-        "id": 5,
-        "pregunta": "¿Hacen envíos a todo el país?",
-        "respuesta": "Sí, realizamos envíos a todas las ciudades principales del país. Para ubicaciones remotas, el tiempo de entrega puede ser mayor."
-    },
-    {
-        "id": 6,
-        "pregunta": "¿Puedo modificar o cancelar mi pedido?",
-        "respuesta": "Puedes modificar o cancelar tu pedido hasta 2 horas después de realizarlo, siempre que no haya sido procesado para envío."
-    }
-]
+# Inicializar casos de uso
+faq_repository = FAQRepositoryImpl()
+listar_faq_use_case = ListarFAQUseCase(faq_repository)
+obtener_faq_use_case = ObtenerFAQUseCase(faq_repository)
+buscar_faq_use_case = BuscarFAQUseCase(faq_repository)
 
 
 @faq_bp.get('/')
 def listar_faq():
-    return jsonify(FAQ_DATA)
+    """Listar todas las preguntas frecuentes"""
+    try:
+        faqs = listar_faq_use_case.ejecutar()
+        
+        # Convertir entidades a diccionarios para JSON
+        faqs_data = []
+        for faq in faqs:
+            faqs_data.append({
+                'id': faq.id,
+                'pregunta': faq.pregunta,
+                'respuesta': faq.respuesta
+            })
+        
+        return jsonify(faqs_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @faq_bp.get('/<int:faq_id>')
 def obtener_faq(faq_id: int):
-    faq = next((item for item in FAQ_DATA if item['id'] == faq_id), None)
-    if not faq:
-        return jsonify({'message': 'FAQ no encontrado'}), 404
-    return jsonify(faq)
+    """Obtener una pregunta frecuente por ID"""
+    try:
+        faq = obtener_faq_use_case.ejecutar(faq_id)
+        
+        return jsonify({
+            'id': faq.id,
+            'pregunta': faq.pregunta,
+            'respuesta': faq.respuesta
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 404
+
+
+@faq_bp.get('/search')
+def buscar_faq():
+    """Buscar preguntas frecuentes por palabra clave"""
+    try:
+        palabra_clave = request.args.get('q', '')
+        if not palabra_clave:
+            return jsonify({'error': 'Parámetro de búsqueda requerido'}), 400
+        
+        faqs = buscar_faq_use_case.ejecutar(palabra_clave)
+        
+        # Convertir entidades a diccionarios para JSON
+        faqs_data = []
+        for faq in faqs:
+            faqs_data.append({
+                'id': faq.id,
+                'pregunta': faq.pregunta,
+                'respuesta': faq.respuesta
+            })
+        
+        return jsonify(faqs_data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 
