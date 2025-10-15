@@ -16,6 +16,10 @@ import { RuntimeConfig as UserRuntimeConfig, PublicRuntimeConfig as UserPublicRu
   }
   interface SharedPublicRuntimeConfig {
    apiBase: string,
+
+   jwtRefreshInterval: number,
+
+   jwtRefreshThreshold: number,
   }
 declare module '@nuxt/schema' {
   interface RuntimeConfig extends UserRuntimeConfig {}

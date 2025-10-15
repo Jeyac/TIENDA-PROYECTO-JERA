@@ -277,7 +277,7 @@
                   <div class="card-body">
                     <!-- Messages -->
                     <div class="chat-messages mb-3" style="height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 1rem; border-radius: 0.375rem;">
-                      <div v-for="activity in selectedTicket.activities?.filter(a => a.activity_type === 'message')" :key="activity.id" class="mb-3">
+                      <div v-for="activity in selectedTicket.activities?.filter((a: any) => a.activity_type === 'message')" :key="activity.id" class="mb-3">
                         <div :class="activity.user_rol === 'atencion_cliente' ? 'text-end' : 'text-start'">
                           <div :class="activity.user_rol === 'atencion_cliente' ? 'bg-primary text-white' : 'bg-light'" 
                                class="d-inline-block p-2 rounded" style="max-width: 70%;">
@@ -287,7 +287,7 @@
                           </div>
                         </div>
                       </div>
-                      <div v-if="!selectedTicket.activities?.filter(a => a.activity_type === 'message').length" class="text-center text-muted">
+                      <div v-if="!selectedTicket.activities?.filter((a: any) => a.activity_type === 'message').length" class="text-center text-muted">
                         <i class="bi bi-chat-dots display-4"></i>
                         <p>No hay mensajes aún. Inicia la conversación.</p>
                       </div>
@@ -560,27 +560,25 @@ const getChatDisabledMessage = () => {
   return ''
 }
 
-const hasUnreadMessages = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }> }) => {
-  if (!ticket.activities) return false
+const hasUnreadMessages = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
+  // No mostrar notificaciones en tickets cerrados o resueltos
+  if (ticket.status === 'cerrado' || ticket.status === 'resuelto') return false
   
-  // Buscar mensajes del cliente (no de atención al cliente) que sean recientes
-  const clientMessages = ticket.activities.filter((activity) => 
-    activity.activity_type === 'message' && 
-    activity.user_rol === 'cliente'
-  )
+  if (!ticket.activities || ticket.activities.length === 0) return false
   
-  if (clientMessages.length === 0) return false
+  // Obtener todos los mensajes ordenados por fecha
+  const messages = ticket.activities
+    .filter((activity) => activity.activity_type === 'message')
+    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
   
-  // Considerar mensaje no leído si es del cliente y es reciente (últimas 24 horas)
-  const lastClientMessage = clientMessages[clientMessages.length - 1]
-  const messageTime = new Date(lastClientMessage.created_at)
-  const now = new Date()
-  const hoursDiff = (now.getTime() - messageTime.getTime()) / (1000 * 60 * 60)
+  if (messages.length === 0) return false
   
-  return hoursDiff < 24
+  // Si el último mensaje es del cliente, hay un mensaje no leído
+  const lastMessage = messages[messages.length - 1]
+  return lastMessage && lastMessage.user_rol === 'cliente'
 }
 
-const getTicketRowClass = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }> }) => {
+const getTicketRowClass = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
   if (hasUnreadMessages(ticket)) {
     return 'table-warning'
   }

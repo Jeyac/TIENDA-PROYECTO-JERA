@@ -26,7 +26,7 @@
       <div class="row g-4 mb-4">
         <KpiCard icon="bi bi-people" label="Total Usuarios" :value="kpis.usuarios_total || 0" color="primary" />
         <KpiCard icon="bi bi-box" label="Total Productos" :value="kpis.productos_total || 0" color="success" />
-        <KpiCard icon="bi bi-currency-dollar" label="Total Ingresos" :value="`Q${kpis.ingresos_total || 0}`" color="info" />
+        <KpiCard icon="bi bi-currency-dollar" label="Ingresos Enviados/Entregados" :value="`Q${kpis.ingresos_total || 0}`" color="info" />
         <KpiCard icon="bi bi-chat-dots" label="Conversaciones" :value="conversationAnalytics.total_conversaciones || 0" color="warning" />
       </div>
 
@@ -111,7 +111,7 @@
                   <div class="d-flex justify-content-between align-items-center">
                     <div>
                       <h6 class="mb-1">{{ order.usuario_nombre || 'Usuario' }}</h6>
-                      <p class="text-muted mb-0 small">{{ order.fecha_creacion }}</p>
+                      <p class="text-muted mb-0 small">{{ formatDate(order.fecha_creacion) }}</p>
                     </div>
                     <div class="text-end">
                       <span class="badge bg-primary">Q {{ Number(order.total).toFixed(2) }}</span>
@@ -157,6 +157,9 @@ definePageMeta({
 
 const config = useRuntimeConfig()
 const auth = useAuthStore()
+
+// Usar función global de formateo con timezone local
+const { $formatDate: formatDate } = useNuxtApp()
 
 // Data
 const kpis = ref<any>({})
@@ -291,4 +294,6 @@ onMounted(() => {
   background-color: var(--bs-gray-100) !important;
 }
 </style>
+
+
 

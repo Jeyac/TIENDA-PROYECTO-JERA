@@ -95,14 +95,14 @@ def login():
             user_id=usuario.id,
             username=usuario.username,
             rol=usuario.rol,
-            expires_minutes=int(os.getenv('JWT_EXPIRES_MINUTES', 60))
+            expires_minutes=int(os.getenv('JWT_EXPIRES_MINUTES'))
         )
         
         refresh_token = generate_token(
             user_id=usuario.id,
             username=usuario.username,
             rol=usuario.rol,
-            expires_minutes=int(os.getenv('JWT_REFRESH_EXPIRES_MINUTES', 10080))
+            expires_minutes=int(os.getenv('JWT_REFRESH_EXPIRES_MINUTES'))
         )
         
         print("Tokens generados exitosamente")
@@ -156,7 +156,7 @@ def refresh():
             user_id=payload['user_id'],
             username=payload['username'],
             rol=payload['rol'],
-            expires_minutes=int(os.getenv('JWT_EXPIRES_MINUTES', 60))
+            expires_minutes=int(os.getenv('JWT_EXPIRES_MINUTES'))
         )
         
         return jsonify({

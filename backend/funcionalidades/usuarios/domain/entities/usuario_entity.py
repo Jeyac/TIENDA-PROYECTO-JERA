@@ -11,6 +11,7 @@ class Usuario:
     email: str
     password_hash: str
     rol: str
+    activo: bool = True
 
     def __post_init__(self):
         if not self.username or not self.username.strip():

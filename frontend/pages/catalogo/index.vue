@@ -85,7 +85,7 @@
                 :src="getProductImage(p)" 
                 :alt="p.titulo"
                 class="img-fluid"
-                style="max-height: 200px; width: 100%; object-fit: cover;"
+                style="max-height: 200px; width: 100%; object-fit: cover; padding: 8px;"
                 @error="imageError = true"
               >
               <i v-else class="bi bi-image text-muted" style="font-size: 3rem;"></i>
@@ -191,7 +191,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRuntimeConfig } from 'nuxt/app'
 import { useCarritoStore } from '../../stores/carrito'
 import { useAuthStore } from '../../stores/auth'
@@ -413,9 +413,16 @@ const agregar = async (p: any, event?: Event) => {
     return
   }
   
-  // Si el usuario no está autenticado, redirigir al login
+  // Si el usuario no está autenticado, mostrar mensaje pero no redirigir
   if (!auth.isAuthenticated) {
-    navigateTo('/login')
+    alert('Debes iniciar sesión para agregar productos al carrito')
+    return
+  }
+  
+  // Validar stock disponible
+  const quantity = getProductQuantity(p.id)
+  if (p.stock < quantity) {
+    alert(`No hay suficiente stock. Solo quedan ${p.stock} unidades disponibles.`)
     return
   }
   
@@ -423,7 +430,6 @@ const agregar = async (p: any, event?: Event) => {
   addingToCart.value[p.id] = true
   
   try {
-    const quantity = getProductQuantity(p.id)
     carrito.agregarItem(p, quantity)
     
     // Mostrar feedback visual
@@ -431,6 +437,8 @@ const agregar = async (p: any, event?: Event) => {
     
     // Pequeño delay para evitar clics múltiples
     await new Promise(resolve => setTimeout(resolve, 500))
+  } catch (error: any) {
+    alert(error.message)
   } finally {
     // Liberar el flag
     addingToCart.value[p.id] = false
@@ -443,6 +451,21 @@ onMounted(async () => {
     loadProducts(),
     loadCategories()
   ])
+  
+  // Escuchar eventos de pedido creado para actualizar el catálogo
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pedidoCreado', async () => {
+      console.log('Pedido creado, actualizando catálogo...')
+      await loadProducts(searchQuery.value, selectedCategory.value)
+    })
+  }
+})
+
+onUnmounted(() => {
+  // Limpiar event listener
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pedidoCreado', () => {})
+  }
 })
 </script>
 

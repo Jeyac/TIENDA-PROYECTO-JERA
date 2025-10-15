@@ -13,6 +13,7 @@ def _to_entity(model: UsuarioModel) -> Usuario:
         email=model.email,
         password_hash=model.password_hash,
         rol=model.rol,
+        activo=model.activo,
     )
 
 
@@ -23,6 +24,7 @@ class UsuarioRepositoryImpl(UsuarioRepository):
             email=usuario.email,
             password_hash=usuario.password_hash,
             rol=usuario.rol,
+            activo=usuario.activo,
         )
         db.session.add(model)
         db.session.commit()
@@ -43,6 +45,7 @@ class UsuarioRepositoryImpl(UsuarioRepository):
         m.email = usuario.email
         m.password_hash = usuario.password_hash
         m.rol = usuario.rol
+        m.activo = usuario.activo
         db.session.commit()
         return _to_entity(m)
 

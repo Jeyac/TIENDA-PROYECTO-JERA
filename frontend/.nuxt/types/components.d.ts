@@ -28,6 +28,7 @@ interface _GlobalComponents {
     'SearchBar': typeof import("../../componentes/SearchBar.vue")['default']
     'SectionTitle': typeof import("../../componentes/SectionTitle.vue")['default']
     'StatusBadge': typeof import("../../componentes/StatusBadge.vue")['default']
+    'StockNotification': typeof import("../../componentes/StockNotification.vue")['default']
     'ToggleSwitch': typeof import("../../componentes/ToggleSwitch.vue")['default']
     'NuxtWelcome': typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']
     'NuxtLayout': typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
@@ -67,6 +68,7 @@ interface _GlobalComponents {
     'LazySearchBar': LazyComponent<typeof import("../../componentes/SearchBar.vue")['default']>
     'LazySectionTitle': LazyComponent<typeof import("../../componentes/SectionTitle.vue")['default']>
     'LazyStatusBadge': LazyComponent<typeof import("../../componentes/StatusBadge.vue")['default']>
+    'LazyStockNotification': LazyComponent<typeof import("../../componentes/StockNotification.vue")['default']>
     'LazyToggleSwitch': LazyComponent<typeof import("../../componentes/ToggleSwitch.vue")['default']>
     'LazyNuxtWelcome': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
     'LazyNuxtLayout': LazyComponent<typeof import("../../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>

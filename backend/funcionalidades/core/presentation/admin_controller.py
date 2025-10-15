@@ -10,6 +10,7 @@ from funcionalidades.chatlog.infrastructure.chat_message_model import ChatMessag
 from funcionalidades.rag.infrastructure.documento_model import DocumentoModel, DocumentoChunkModel
 from funcionalidades.rag.infrastructure.embedder_openai import OpenAIEmbedder
 from funcionalidades.categorias.infrastructure.categoria_model import CategoriaModel
+from funcionalidades.core.infraestructura.timezone import format_guatemala_time
 
 
 admin_bp = Blueprint('admin', __name__)
@@ -23,7 +24,9 @@ def kpis():
 
         usuarios_total = db.session.query(func.count(UsuarioModel.id)).scalar() or 0
         productos_total = db.session.query(func.count(ProductoModel.id)).filter(ProductoModel.activo == True).scalar() or 0
-        ingresos_total = db.session.query(func.coalesce(func.sum(PedidoModel.total), 0)).scalar() or 0
+        # Solo ingresos de pedidos enviados y entregados
+        ingresos_total = db.session.query(func.coalesce(func.sum(PedidoModel.total), 0)).filter(PedidoModel.estado.in_(['enviado', 'entregado'])).scalar() or 0
+        pedidos_enviados_entregados_count = db.session.query(func.count(PedidoModel.id)).filter(PedidoModel.estado.in_(['enviado', 'entregado'])).scalar() or 0
         
         kpis_data = {
             'usuarios_total': usuarios_total,
@@ -32,6 +35,7 @@ def kpis():
         }
         
         print(f"KPIs calculados: {kpis_data}")
+        print(f"Pedidos enviados y entregados: {pedidos_enviados_entregados_count}, Ingresos totales: {ingresos_total}")
         return jsonify(kpis_data)
         
     except Exception as e:
@@ -142,22 +146,22 @@ def get_chats():
                     'usuario_email': usuario.email if usuario else 'Sin email',
                     'mensajes': [],
                     'mensajes_count': 0,
-                    'fecha_creacion': chat.created_at.isoformat() if chat.created_at else None,
-                    'ultima_actividad': chat.created_at.isoformat() if chat.created_at else None
+                    'fecha_creacion': format_guatemala_time(chat.created_at, '%Y-%m-%dT%H:%M:%S') if chat.created_at else None,
+                    'ultima_actividad': format_guatemala_time(chat.created_at, '%Y-%m-%dT%H:%M:%S') if chat.created_at else None
                 }
             
             conversations[conv_key]['mensajes'].append({
                 'id': chat.id,
                 'contenido': chat.content,
                 'tipo': 'usuario' if chat.role == 'user' else 'bot' if chat.role == 'assistant' else 'sistema',
-                'fecha_creacion': chat.created_at.isoformat() if chat.created_at else None
+                'fecha_creacion': format_guatemala_time(chat.created_at, '%Y-%m-%dT%H:%M:%S') if chat.created_at else None
             })
             conversations[conv_key]['mensajes_count'] += 1
             
             # Actualizar última actividad
             if chat.created_at:
                 current_ultima_actividad = conversations[conv_key]['ultima_actividad']
-                chat_iso = chat.created_at.isoformat()
+                chat_iso = format_guatemala_time(chat.created_at, '%Y-%m-%dT%H:%M:%S')
                 if not current_ultima_actividad or chat_iso > current_ultima_actividad:
                     conversations[conv_key]['ultima_actividad'] = chat_iso
         
@@ -391,10 +395,18 @@ def update_pedido(pedido_id):
         
         if 'estado' in data:
             print(f"DEBUG: Actualizando estado de {pedido.estado} a {data['estado']}")
-            pedido.estado = data['estado']
+            
+            # Usar el caso de uso para actualizar el estado (maneja stock automáticamente)
+            from funcionalidades.pedidos.application.use_cases.actualizar_estado_pedido_use_case import ActualizarEstadoPedidoUseCase
+            from funcionalidades.pedidos.infrastructure.pedido_repository_impl import PedidoRepositoryImpl
+            
+            repo = PedidoRepositoryImpl()
+            use_case = ActualizarEstadoPedidoUseCase(repo)
+            use_case.ejecutar(pedido_id, data['estado'])
+            
+            # Recargar el pedido para obtener el estado actualizado
+            pedido = PedidoModel.query.get(pedido_id)
         
-        print(f"DEBUG: Guardando cambios...")
-        db.session.commit()
         print(f"DEBUG: Cambios guardados exitosamente")
         
         return jsonify({

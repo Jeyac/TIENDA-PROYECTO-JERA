@@ -66,7 +66,7 @@
                 <i class="bi bi-currency-dollar" style="font-size: 2rem;"></i>
               </div>
               <h3 class="fw-bold mb-1">Q{{ totalRevenue.toFixed(2) }}</h3>
-              <p class="text-muted mb-0">Ingresos totales</p>
+              <p class="text-muted mb-0">Ingresos enviados/entregados</p>
             </div>
           </div>
         </div>
@@ -99,19 +99,6 @@
                   </div>
                 </div>
                 <div class="col-md-2">
-                  <label class="form-label fw-semibold">Usuario</label>
-                  <select
-                    v-model="selectedUser"
-                    class="form-select"
-                    @change="filterOrders"
-                  >
-                    <option value="">Todos</option>
-                    <option v-for="user in users" :key="user.id" :value="user.id">
-                      {{ user.username }}
-                    </option>
-                  </select>
-                </div>
-                <div class="col-md-2">
                   <label class="form-label fw-semibold">Estado</label>
                   <select
                     v-model="selectedStatus"
@@ -127,18 +114,9 @@
                   </select>
                 </div>
                 <div class="col-md-2">
-                  <label class="form-label fw-semibold">Desde</label>
+                  <label class="form-label fw-semibold">Fecha</label>
                   <input
-                    v-model="dateFrom"
-                    type="date"
-                    class="form-control"
-                    @change="filterOrders"
-                  >
-                </div>
-                <div class="col-md-2">
-                  <label class="form-label fw-semibold">Hasta</label>
-                  <input
-                    v-model="dateTo"
+                    v-model="selectedDate"
                     type="date"
                     class="form-control"
                     @change="filterOrders"
@@ -403,16 +381,13 @@ const auth = useAuthStore()
 
 // Data
 const orders = ref<any[]>([])
-const users = ref<any[]>([])
 const loading = ref(false)
 const updating = ref(false)
 const error = ref('')
 
 // Filters
-const selectedUser = ref('')
 const selectedStatus = ref('')
-const dateFrom = ref('')
-const dateTo = ref('')
+const selectedDate = ref('')
 const searchText = ref('')
 
 // Modal states
@@ -425,23 +400,27 @@ const newStatus = ref('')
 const filteredOrders = computed(() => {
   let filtered = orders.value
 
-  if (selectedUser.value) {
-    filtered = filtered.filter(order => order.usuario_id === parseInt(selectedUser.value))
-  }
-
   if (selectedStatus.value) {
     filtered = filtered.filter(order => order.estado === selectedStatus.value)
   }
 
-  if (dateFrom.value) {
-    const fromDate = new Date(dateFrom.value)
-    filtered = filtered.filter(order => new Date(order.fecha_creacion) >= fromDate)
-  }
-
-  if (dateTo.value) {
-    const toDate = new Date(dateTo.value)
-    toDate.setHours(23, 59, 59, 999)
-    filtered = filtered.filter(order => new Date(order.fecha_creacion) <= toDate)
+  if (selectedDate.value) {
+    const filterDate = new Date(selectedDate.value)
+    const filterDateString = filterDate.toISOString().split('T')[0] // YYYY-MM-DD
+    
+    console.log('Filtrando por fecha:', filterDateString)
+    
+    filtered = filtered.filter(order => {
+      if (!order.fecha_creacion) return false
+      
+      // Convertir la fecha ISO a string YYYY-MM-DD para comparar
+      const orderDate = new Date(order.fecha_creacion)
+      const orderDateString = orderDate.toISOString().split('T')[0]
+      
+      console.log('Comparando:', orderDateString, 'con', filterDateString)
+      
+      return orderDateString === filterDateString
+    })
   }
 
   if (searchText.value) {
@@ -465,7 +444,7 @@ const totalAmount = computed(() => {
 const totalOrders = computed(() => orders.value.length)
 const pendingOrders = computed(() => orders.value.filter(order => order.estado === 'pendiente').length)
 const completedOrders = computed(() => orders.value.filter(order => order.estado === 'entregado').length)
-const totalRevenue = computed(() => orders.value.reduce((sum, order) => sum + Number(order.total), 0))
+const totalRevenue = computed(() => orders.value.filter(order => ['enviado', 'entregado'].includes(order.estado)).reduce((sum, order) => sum + Number(order.total), 0))
 
 // Methods
 const loadOrders = async () => {
@@ -482,6 +461,7 @@ const loadOrders = async () => {
     if (res.ok) {
       const data = await res.json()
       console.log('Orders loaded from backend:', data)
+      console.log('Sample order fecha_creacion:', data[0]?.fecha_creacion)
       orders.value = data
     } else if (res.status === 401) {
       await auth.logout()
@@ -495,31 +475,15 @@ const loadOrders = async () => {
   }
 }
 
-const loadUsers = async () => {
-  try {
-    const res = await fetch(`${config.public.apiBase}/api/admin/usuarios/`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    
-    if (res.ok) {
-      users.value = await res.json()
-    }
-  } catch (err) {
-    console.error('Error cargando usuarios:', err)
-  }
-}
 
 const filterOrders = () => {
   // Filtering is handled by computed property
 }
 
 const clearFilters = () => {
-  selectedUser.value = ''
   selectedStatus.value = ''
-  dateFrom.value = ''
-  dateTo.value = ''
+  selectedDate.value = ''
+  searchText.value = ''
 }
 
 const viewOrder = (order: any) => {
@@ -553,6 +517,16 @@ const confirmStatusUpdate = async () => {
     if (res.ok) {
       await loadOrders()
       showStatusModal.value = false
+      
+      // Emitir notificación si se canceló el pedido
+      if (newStatus.value === 'cancelado') {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('stockActualizado', { 
+            detail: { message: `Stock restaurado para pedido #${selectedOrder.value.id}` } 
+          }))
+        }
+      }
+      
       selectedOrder.value = null
     } else if (res.status === 401) {
       await auth.logout()
@@ -600,7 +574,7 @@ const getStatusBadgeClass = (status: string) => {
   return statusClasses[status] || 'bg-secondary'
 }
 
-// Usar función global de formateo
+// Usar función global de formateo con timezone local
 const { $formatDate: formatDate } = useNuxtApp()
 
 // Función para calcular cantidad de productos
@@ -617,10 +591,7 @@ const getProductCount = (order: any) => {
 // Lifecycle
 onMounted(async () => {
   if (auth.isAuthenticated && auth.isAdmin) {
-    await Promise.all([
-      loadOrders(),
-      loadUsers()
-    ])
+    await loadOrders()
   }
 })
 </script>

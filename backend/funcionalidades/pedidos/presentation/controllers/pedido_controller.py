@@ -216,3 +216,33 @@ def eliminar_pedido(pedido_id: int):
         return jsonify({'message': str(exc)}), 404
 
 
+@pedidos_bp.put('/<int:pedido_id>/cancelar')
+@jwt_required(roles={'administrador'})
+def cancelar_pedido(pedido_id: int):
+    """Cancelar un pedido (solo administradores)"""
+    try:
+        from funcionalidades.pedidos.application.use_cases.actualizar_estado_pedido_use_case import ActualizarEstadoPedidoUseCase
+        
+        # Verificar que el pedido existe
+        pedido = repo.get_by_id(pedido_id)
+        if not pedido:
+            return jsonify({'message': 'Pedido no encontrado'}), 404
+        
+        # Verificar que el pedido se puede cancelar
+        from funcionalidades.pedidos.infrastructure.pedido_model import PedidoModel
+        pedido_model = PedidoModel.query.get(pedido_id)
+        if pedido_model.estado == 'entregado':
+            return jsonify({'message': 'No se puede cancelar un pedido ya entregado'}), 400
+        if pedido_model.estado == 'cancelado':
+            return jsonify({'message': 'El pedido ya está cancelado'}), 400
+        
+        # Cancelar el pedido usando el caso de uso
+        use_case = ActualizarEstadoPedidoUseCase(repo)
+        use_case.ejecutar(pedido_id, 'cancelado')
+        
+        return jsonify({'message': 'Pedido cancelado exitosamente'})
+        
+    except Exception as e:
+        return jsonify({'message': f'Error interno del servidor: {str(e)}'}), 500
+
+

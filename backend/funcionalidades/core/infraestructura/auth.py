@@ -20,7 +20,7 @@ def generate_token(user_id: int, username: str, rol: str, expires_minutes: int =
 
 
 def create_access_token(subject: str, role: Optional[str] = None) -> str:
-    expires_minutes = int(current_app.config.get('JWT_EXPIRES_MINUTES', 60))
+    expires_minutes = int(current_app.config['JWT_EXPIRES_MINUTES'])
     payload = {
         'sub': subject,
         'type': 'access',
@@ -32,7 +32,7 @@ def create_access_token(subject: str, role: Optional[str] = None) -> str:
 
 
 def create_refresh_token(subject: str) -> str:
-    expires_minutes = int(current_app.config.get('JWT_REFRESH_EXPIRES_MINUTES', 10080))
+    expires_minutes = int(current_app.config['JWT_REFRESH_EXPIRES_MINUTES'])
     payload = {
         'sub': subject,
         'type': 'refresh',

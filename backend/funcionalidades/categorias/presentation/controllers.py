@@ -82,3 +82,5 @@ def eliminar_categoria(categoria_id: int):
     except NotFoundError as exc:
         return jsonify({'message': str(exc)}), 404
 
+
+

@@ -183,7 +183,17 @@ class TicketService:
                 'created_at': ticket.created_at.isoformat(),
                 'updated_at': ticket.updated_at.isoformat(),
                 'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
-                'resolution': ticket.resolution
+                'resolution': ticket.resolution,
+                'activities': [
+                    {
+                        'id': activity.id,
+                        'activity_type': activity.activity_type,
+                        'description': activity.description,
+                        'created_at': activity.created_at.isoformat(),
+                        'user_rol': activity.user.rol if activity.user else 'cliente'
+                    }
+                    for activity in ticket.activities
+                ]
             }
             for ticket in tickets
         ]
@@ -212,7 +222,17 @@ class TicketService:
                 'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
                 'resolution': ticket.resolution,
                 'user_name': ticket.user.username if ticket.user else 'Usuario anónimo',
-                'user_email': ticket.user.email if ticket.user else None
+                'user_email': ticket.user.email if ticket.user else None,
+                'activities': [
+                    {
+                        'id': activity.id,
+                        'activity_type': activity.activity_type,
+                        'description': activity.description,
+                        'created_at': activity.created_at.isoformat(),
+                        'user_rol': activity.user.rol if activity.user else 'cliente'
+                    }
+                    for activity in ticket.activities
+                ]
             }
             for ticket in tickets
         ]

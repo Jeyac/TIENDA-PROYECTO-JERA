@@ -21,7 +21,9 @@ export default defineNuxtConfig({
   ],
   runtimeConfig: {
     public: {
-      apiBase: 'http://localhost:5000'
+      apiBase: 'http://localhost:5000',
+      jwtRefreshInterval: Number(process.env.JWT_REFRESH_INTERVAL), // segundos
+      jwtRefreshThreshold: Number(process.env.JWT_REFRESH_THRESHOLD) // segundos antes de expirar
     }
   },
   nitro: {

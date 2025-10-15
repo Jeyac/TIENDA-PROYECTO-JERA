@@ -28,6 +28,7 @@ export const Paginator: typeof import("../componentes/Paginator.vue")['default']
 export const SearchBar: typeof import("../componentes/SearchBar.vue")['default']
 export const SectionTitle: typeof import("../componentes/SectionTitle.vue")['default']
 export const StatusBadge: typeof import("../componentes/StatusBadge.vue")['default']
+export const StockNotification: typeof import("../componentes/StockNotification.vue")['default']
 export const ToggleSwitch: typeof import("../componentes/ToggleSwitch.vue")['default']
 export const NuxtWelcome: typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']
 export const NuxtLayout: typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']
@@ -67,6 +68,7 @@ export const LazyPaginator: LazyComponent<typeof import("../componentes/Paginato
 export const LazySearchBar: LazyComponent<typeof import("../componentes/SearchBar.vue")['default']>
 export const LazySectionTitle: LazyComponent<typeof import("../componentes/SectionTitle.vue")['default']>
 export const LazyStatusBadge: LazyComponent<typeof import("../componentes/StatusBadge.vue")['default']>
+export const LazyStockNotification: LazyComponent<typeof import("../componentes/StockNotification.vue")['default']>
 export const LazyToggleSwitch: LazyComponent<typeof import("../componentes/ToggleSwitch.vue")['default']>
 export const LazyNuxtWelcome: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/welcome.vue")['default']>
 export const LazyNuxtLayout: LazyComponent<typeof import("../node_modules/nuxt/dist/app/components/nuxt-layout")['default']>

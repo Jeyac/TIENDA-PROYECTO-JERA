@@ -35,7 +35,40 @@ export const useAuthStore = defineStore('auth', {
   }),
 
   getters: {
-    isAuthenticated: (state) => !!state.token && !!state.user,
+    isAuthenticated: (state) => {
+      if (!state.token || !state.user) {
+        console.log('isAuthenticated: No hay token o usuario')
+        return false
+      }
+      
+      try {
+        // Verificar si el token está expirado
+        const tokenParts = state.token.split('.')
+        if (tokenParts.length !== 3 || !tokenParts[1]) {
+          console.log('isAuthenticated: Token malformado')
+          return false
+        }
+        
+        const payload = JSON.parse(atob(tokenParts[1]))
+        const currentTime = Math.floor(Date.now() / 1000)
+        const timeUntilExpiry = payload.exp - currentTime
+        
+        console.log(`isAuthenticated: Token expira en ${timeUntilExpiry} segundos`)
+        
+        // Considerar autenticado si el token no está expirado O si tenemos refresh token
+        // Esto permite que el middleware intente renovar tokens expirados
+        const isTokenValid = payload.exp && payload.exp > currentTime
+        const hasRefreshToken = !!state.refreshToken
+        
+        const isValid = isTokenValid || hasRefreshToken
+        console.log(`isAuthenticated: Token válido: ${isTokenValid}, tiene refresh: ${hasRefreshToken}, resultado: ${isValid}`)
+        return isValid
+      } catch (error) {
+        console.error('Error verificando token en isAuthenticated:', error)
+        return false
+      }
+    },
+    hasTokens: (state) => !!state.token && !!state.refreshToken && !!state.user,
     isAdmin: (state) => state.user?.rol === 'administrador',
     userName: (state) => state.user?.username || '',
     userEmail: (state) => state.user?.email || ''
@@ -99,11 +132,40 @@ export const useAuthStore = defineStore('auth', {
     },
 
     // Función helper para manejar sesión expirada
-    handleSessionExpired() {
-      console.log('Sesión expirada, redirigiendo al login...')
-      this.logout()
-      if (process.client) {
-        window.location.href = '/login'
+    handleSessionExpired(forceRedirect: boolean = false) {
+      console.log('Sesión expirada, limpiando datos...')
+      
+      // Limpiar intervalo de refresh
+      if (this.refreshInterval) {
+        clearInterval(this.refreshInterval)
+        this.refreshInterval = null
+      }
+      
+      // Limpiar estado
+      this.user = null
+      this.token = null
+      this.refreshToken = null
+      this.error = null
+
+      // Limpiar localStorage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        localStorage.removeItem('user')
+      }
+
+      // Solo redirigir si se fuerza o si estamos en una página protegida
+      if (forceRedirect || process.client) {
+        const currentPath = window.location.pathname
+        const protectedPaths = ['/admin', '/atencion', '/profile', '/orders', '/tickets']
+        const isProtectedPath = protectedPaths.some(path => currentPath.startsWith(path))
+        
+        if (isProtectedPath) {
+          console.log('Redirigiendo al login desde página protegida...')
+          window.location.href = '/login'
+        } else {
+          console.log('Manteniendo usuario en página pública...')
+        }
       }
     },
 
@@ -138,6 +200,13 @@ export const useAuthStore = defineStore('auth', {
           localStorage.setItem('access_token', data.access_token)
         }
 
+        // Emitir evento para que otros componentes sepan que el token se renovó
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('tokenRefreshed', { 
+            detail: { newToken: data.access_token } 
+          }))
+        }
+
         console.log('Token renovado exitosamente')
         return data.access_token
       } catch (error: any) {
@@ -154,8 +223,11 @@ export const useAuthStore = defineStore('auth', {
         clearInterval(this.refreshInterval)
       }
 
-      // Verificar si el token está cerca de expirar cada 30 segundos
-      // (ya que el token expira en 1 minuto según .env)
+      // Obtener configuración del runtime config
+      const config = useRuntimeConfig()
+      const refreshInterval = config.public.jwtRefreshInterval * 1000 // convertir a milisegundos
+
+      // Verificar si el token está cerca de expirar según configuración
       this.refreshInterval = setInterval(async () => {
         if (this.token && this.refreshToken) {
           try {
@@ -168,7 +240,7 @@ export const useAuthStore = defineStore('auth', {
             this.handleSessionExpired()
           }
         }
-      }, 30 * 1000) // 30 segundos (la mitad del tiempo de expiración)
+      }, refreshInterval)
     },
 
     async makeAuthenticatedRequest(url: string, options: RequestInit = {}) {
@@ -179,7 +251,7 @@ export const useAuthStore = defineStore('auth', {
       const isFormData = options.body instanceof FormData
       const headers: Record<string, string> = {
         'Authorization': `Bearer ${this.token}`,
-        ...options.headers
+        ...(options.headers as Record<string, string> || {})
       }
       
       if (!isFormData) {
@@ -198,7 +270,7 @@ export const useAuthStore = defineStore('auth', {
           // Reintentar la petición con el nuevo token
           const retryHeaders: Record<string, string> = {
             'Authorization': `Bearer ${this.token}`,
-            ...options.headers
+            ...(options.headers as Record<string, string> || {})
           }
           
           if (!isFormData) {
@@ -339,7 +411,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async logout() {
+    async logout(redirectToLogin: boolean = true) {
       // Limpiar intervalo de refresh
       if (this.refreshInterval) {
         clearInterval(this.refreshInterval)
@@ -363,45 +435,76 @@ export const useAuthStore = defineStore('auth', {
         localStorage.removeItem('user')
       }
 
-      // Redirigir al login
-      await navigateTo('/login')
+      // Solo redirigir al login si se solicita explícitamente
+      if (redirectToLogin) {
+        await navigateTo('/login')
+      }
     },
 
     initializeAuth() {
       // Cargar datos del localStorage al inicializar
       if (typeof window !== 'undefined') {
+        // Si ya tenemos tokens, no hacer nada
+        if (this.hasTokens) {
+          console.log('Auth ya inicializada, saltando...')
+          return
+        }
+        
+        console.log('=== INICIALIZANDO AUTH ===')
+        
         const token = localStorage.getItem('access_token')
         const refreshToken = localStorage.getItem('refresh_token')
         const userStr = localStorage.getItem('user')
 
         if (token && refreshToken && userStr) {
           try {
-            this.token = token
-            this.refreshToken = refreshToken
-            this.user = JSON.parse(userStr)
-            
             // Verificar si el token está expirado al inicializar
             try {
-              const payload = JSON.parse(atob(token.split('.')[1]))
-              const currentTime = Math.floor(Date.now() / 1000)
+              if (!token || typeof token !== 'string') {
+                this.handleSessionExpired()
+                return
+              }
               
-              // Verificar si el token expira en menos de 30 segundos
+              const tokenParts = token.split('.')
+              if (tokenParts.length !== 3) {
+                this.handleSessionExpired()
+                return
+              }
+              const payload = JSON.parse(atob(tokenParts[1] as string))
+              const currentTime = Math.floor(Date.now() / 1000)
+              const config = useRuntimeConfig()
+              const refreshThreshold = config.public.jwtRefreshThreshold
+              
+              // Verificar si el token expira en menos del threshold configurado
               const timeUntilExpiry = payload.exp - currentTime
               
               if (payload.exp && payload.exp < currentTime) {
                 console.log('Token expirado al inicializar, intentando renovar...')
+                // Asignar tokens temporalmente para poder renovar
+                this.token = token
+                this.refreshToken = refreshToken
+                this.user = JSON.parse(userStr)
                 // Intentar renovar el token
                 this.refreshAccessToken().catch(() => {
                   // Si no se puede renovar, limpiar sesión
                   this.handleSessionExpired()
                 })
-              } else if (timeUntilExpiry < 30) {
-                console.log('Token expira pronto, renovando inmediatamente...')
-                // Renovar inmediatamente si expira en menos de 30 segundos
+              } else if (timeUntilExpiry < refreshThreshold) {
+                console.log(`Token expira pronto (en ${timeUntilExpiry}s), renovando inmediatamente...`)
+                // Asignar tokens temporalmente para poder renovar
+                this.token = token
+                this.refreshToken = refreshToken
+                this.user = JSON.parse(userStr)
+                // Renovar inmediatamente si expira en menos del threshold configurado
                 this.refreshAccessToken().catch(() => {
                   this.handleSessionExpired()
                 })
               } else {
+                // Asignar tokens solo si están válidos
+                this.token = token
+                this.refreshToken = refreshToken
+                this.user = JSON.parse(userStr)
+                
                 // Iniciar refresh automático solo si no está ya iniciado
                 if (!this.refreshInterval) {
                   this.startTokenRefresh()
@@ -422,5 +525,7 @@ export const useAuthStore = defineStore('auth', {
     }
   }
 })
+
+
 
 

@@ -125,6 +125,9 @@ def actualizar_usuario(user_id):
         
         if 'activo' in data:
             print(f"Actualizando campo activo: {data['activo']} -> {bool(data['activo'])}")
+            # Verificar que no se pueda desactivar un administrador
+            if usuario.rol == 'administrador' and not bool(data['activo']):
+                return jsonify({'error': 'No se puede desactivar un usuario administrador'}), 400
             usuario.activo = bool(data['activo'])
         
         if 'password' in data and data['password']:
@@ -182,6 +185,10 @@ def toggle_user_status(user_id: int):
         data = request.get_json()
         if not data or 'activo' not in data:
             return jsonify({'error': 'Campo activo requerido'}), 400
+        
+        # Verificar que no se pueda desactivar un administrador
+        if user.rol == 'administrador' and not bool(data['activo']):
+            return jsonify({'error': 'No se puede desactivar un usuario administrador'}), 400
         
         user.activo = bool(data['activo'])
         db.session.commit()

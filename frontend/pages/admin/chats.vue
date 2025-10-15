@@ -30,30 +30,17 @@
             <div class="card-body">
               <div class="row g-3 align-items-end">
                 <div class="col-md-4">
-                  <label for="userFilter" class="form-label">Filtrar por usuario</label>
-                  <select
-                    v-model="selectedUser"
-                    class="form-select"
-                    id="userFilter"
-                    @change="filterChats"
-                  >
-                    <option value="">Todos los usuarios</option>
-                    <option v-for="user in users" :key="user.id" :value="user.id">
-                      {{ user.username }} ({{ user.email }})
-                    </option>
-                  </select>
-                </div>
-                <div class="col-md-4">
-                  <label for="dateFilter" class="form-label">Filtrar por fecha</label>
+                  <label for="userSearch" class="form-label">Buscar por usuario</label>
                   <input
-                    v-model="selectedDate"
-                    type="date"
+                    v-model="userSearchText"
+                    type="text"
                     class="form-control"
-                    id="dateFilter"
-                    @change="filterChats"
+                    id="userSearch"
+                    placeholder="Buscar por nombre o email..."
+                    @input="filterChats"
                   >
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-8">
                   <BaseButton variant="outline-secondary" class="w-100" @click="clearFilters">
                     <i class="bi bi-x-circle me-2"></i>Limpiar filtros
                   </BaseButton>
@@ -119,7 +106,7 @@
               </div>
               
               <div v-if="expandedChats.includes(chat.id)" class="chat-messages">
-                <div class="messages-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
+                <div class="messages-container" style="max-height: 800px; overflow-y: auto; border: 1px solid #e9ecef; border-radius: 8px; padding: 15px; background-color: #f8f9fa;">
                   <div v-for="message in chat.mensajes" :key="message.id" class="message-item mb-3">
                     <div class="message" :class="message.tipo === 'usuario' ? 'user-message' : 'bot-message'">
                       <div class="message-header d-flex justify-content-between align-items-center mb-2">
@@ -189,14 +176,12 @@ const auth = useAuthStore()
 
 // Data
 const chats = ref<any[]>([])
-const users = ref<any[]>([])
 const loading = ref(false)
 const deleting = ref(false)
 const error = ref('')
 
 // Filters
-const selectedUser = ref('')
-const selectedDate = ref('')
+const userSearchText = ref('')
 const expandedChats = ref<number[]>([])
 
 // Modal states
@@ -208,17 +193,16 @@ const chatToDelete = ref<number | null>(null)
 const filteredChats = computed(() => {
   let filtered = chats.value
 
-  if (selectedUser.value) {
-    filtered = filtered.filter(chat => chat.usuario_id === parseInt(selectedUser.value))
-  }
-
-  if (selectedDate.value) {
-    const selectedDateObj = new Date(selectedDate.value)
+  // Filtro de búsqueda por texto (nombre o email)
+  if (userSearchText.value) {
+    const searchText = userSearchText.value.toLowerCase()
     filtered = filtered.filter(chat => {
-      const chatDate = new Date(chat.fecha_creacion)
-      return chatDate.toDateString() === selectedDateObj.toDateString()
+      const nombre = (chat.usuario_nombre || '').toLowerCase()
+      const email = (chat.usuario_email || '').toLowerCase()
+      return nombre.includes(searchText) || email.includes(searchText)
     })
   }
+
 
   return filtered
 })
@@ -249,29 +233,13 @@ const loadChats = async () => {
   }
 }
 
-const loadUsers = async () => {
-  try {
-    const res = await fetch(`${config.public.apiBase}/api/admin/usuarios/`, {
-      headers: {
-        'Authorization': `Bearer ${auth.token}`
-      }
-    })
-    
-    if (res.ok) {
-      users.value = await res.json()
-    }
-  } catch (err) {
-    console.error('Error cargando usuarios:', err)
-  }
-}
 
 const filterChats = () => {
   // Filtering is handled by computed property
 }
 
 const clearFilters = () => {
-  selectedUser.value = ''
-  selectedDate.value = ''
+  userSearchText.value = ''
 }
 
 const toggleChat = (chatId: number) => {
@@ -353,10 +321,7 @@ const { $formatDate: formatDate, $formatTime: formatTime } = useNuxtApp()
 // Lifecycle
 onMounted(async () => {
   if (auth.isAuthenticated && auth.isAdmin) {
-    await Promise.all([
-      loadChats(),
-      loadUsers()
-    ])
+    await loadChats()
   }
 })
 </script>
@@ -400,7 +365,7 @@ onMounted(async () => {
 }
 
 .messages-container {
-  max-height: 400px;
+  max-height: 800px;
   overflow-y: auto;
   padding: 1rem;
 }

@@ -129,6 +129,9 @@
         <slot />
       </main>
     </div>
+    
+    <!-- Stock Notification (solo para admin) -->
+    <StockNotification />
   </div>
 </template>
 

@@ -647,7 +647,9 @@ const _inlineRuntimeConfig = {
     }
   },
   "public": {
-    "apiBase": "http://localhost:5000"
+    "apiBase": "http://localhost:5000",
+    "jwtRefreshInterval": 30,
+    "jwtRefreshThreshold": 30
   }
 };
 const envOptions = {

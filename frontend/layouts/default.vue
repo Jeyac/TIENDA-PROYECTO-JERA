@@ -269,23 +269,8 @@ onMounted(() => {
     localStorage.setItem('userTimezone', detected)
   }
   
-  // Redirigir según el rol si está en páginas que no corresponden a su rol
-  if (auth.isAuthenticated) {
-    const currentPath = window.location.pathname
-    
-    // Si es administrador y no está en páginas de admin, redirigir
-    if (auth.user?.rol === 'administrador' && !currentPath.startsWith('/admin')) {
-      navigateTo('/admin/analytics')
-    } 
-    // Si es atención al cliente y no está en páginas de atención, redirigir
-    else if (auth.user?.rol === 'atencion_cliente' && !currentPath.startsWith('/atencion')) {
-      navigateTo('/atencion/tickets')
-    }
-    // Si es usuario normal y está en páginas de admin o atención, redirigir
-    else if (auth.user?.rol === 'usuario' && (currentPath.startsWith('/admin') || currentPath.startsWith('/atencion'))) {
-      navigateTo('/profile')
-    }
-  }
+  // La lógica de redirección se maneja en los middlewares específicos
+  // No redirigir aquí para evitar conflictos con la restauración de tokens
 })
 </script>
 

@@ -21,6 +21,11 @@ export const useCarritoStore = defineStore('carrito', {
   },
   actions: {
     agregarItem(p: any, cantidad: number = 1) {
+      // Validar stock disponible
+      if (p.stock < cantidad) {
+        throw new Error(`No hay suficiente stock. Solo quedan ${p.stock} unidades disponibles.`)
+      }
+      
       const found = this.items.find(i => i.producto_id === p.id)
       if (found) {
         // Si el producto ya existe, establecer la cantidad exacta (no sumar)

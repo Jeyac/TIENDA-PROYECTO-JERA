@@ -746,38 +746,21 @@ const getTicketRowClass = (ticket: any) => {
 }
 
 const hasUnreadMessages = (ticket: any) => {
-  if (!ticket.activities) return false
+  // No mostrar notificaciones en tickets cerrados o resueltos
+  if (ticket.status === 'cerrado' || ticket.status === 'resuelto') return false
   
-  // Buscar mensajes del agente de soporte (no del cliente) que sean recientes
-  const agentMessages = ticket.activities.filter((activity: any) => 
-    activity.activity_type === 'message' && 
-    activity.user_rol !== 'cliente'
-  )
+  if (!ticket.activities || ticket.activities.length === 0) return false
   
-  if (agentMessages.length === 0) return false
+  // Obtener todos los mensajes ordenados por fecha
+  const messages = ticket.activities
+    .filter((activity: any) => activity.activity_type === 'message')
+    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
   
-  // Verificar si hay mensajes del agente más recientes que el último mensaje del cliente
-  const clientMessages = ticket.activities.filter((activity: any) => 
-    activity.activity_type === 'message' && 
-    activity.user_rol === 'cliente'
-  )
+  if (messages.length === 0) return false
   
-  if (clientMessages.length === 0) {
-    // Si no hay mensajes del cliente pero sí del agente, hay mensajes nuevos
-    return agentMessages.length > 0
-  }
-  
-  // Obtener el último mensaje del cliente
-  const lastClientMessage = clientMessages.sort((a: any, b: any) => 
-    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  )[0]
-  
-  // Verificar si hay mensajes del agente posteriores al último mensaje del cliente
-  const hasNewAgentMessages = agentMessages.some((message: any) => 
-    new Date(message.created_at) > new Date(lastClientMessage.created_at)
-  )
-  
-  return hasNewAgentMessages
+  // Si el último mensaje es del agente (no del cliente), hay un mensaje no leído
+  const lastMessage = messages[messages.length - 1]
+  return lastMessage && lastMessage.user_rol !== 'cliente'
 }
 
 const filterTickets = () => {

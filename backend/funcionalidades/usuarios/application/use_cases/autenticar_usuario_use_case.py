@@ -24,6 +24,13 @@ class AutenticarUsuarioUseCase:
             print("DEBUG: Usuario no encontrado")
             raise NotFoundError('Usuario no encontrado')
         
+        print(f"DEBUG: Usuario encontrado - ID: {usuario.id}, Username: {usuario.username}, Activo: {usuario.activo}")
+        
+        # Verificar que el usuario esté activo
+        if not usuario.activo:
+            print("DEBUG: Usuario inactivo")
+            raise BadRequestError('Usuario inactivo. Contacta al administrador.')
+        
         print(f"DEBUG: Verificando contraseña...")
         if not verify_password(password, usuario.password_hash):
             print("DEBUG: Contraseña incorrecta")

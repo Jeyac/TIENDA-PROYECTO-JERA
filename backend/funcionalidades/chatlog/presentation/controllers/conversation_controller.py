@@ -105,6 +105,7 @@ def get_conversation_messages(conversation_id):
             return jsonify({'error': 'Conversación no encontrada'}), 404
         
         messages = conversation_service.get_conversation_messages(conversation_id, limit)
+        print(messages)
         return jsonify(messages)
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -250,6 +251,10 @@ def add_session_message(conversation_id):
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+
+
 
 
 

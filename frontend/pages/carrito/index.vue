@@ -65,15 +65,15 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({
-  middleware: ['user-only'],
-  layout: 'default'
-})
-
 import { ref, reactive } from 'vue'
 import { useRuntimeConfig, navigateTo } from 'nuxt/app'
 import { useCarritoStore } from '../../stores/carrito'
 import { useAuthStore } from '../../stores/auth'
+
+definePageMeta({
+  middleware: ['user-only'],
+  layout: 'default'
+})
 // route derived from file path
 
 const carrito = useCarritoStore()
@@ -118,6 +118,11 @@ async function finalizar() {
       throw new Error('Por favor completa todos los campos obligatorios (nombre, teléfono y dirección)')
     }
     
+    // Validar que hay items en el carrito
+    if (carrito.items.length === 0) {
+      throw new Error('No hay productos en el carrito')
+    }
+    
     const body = {
       usuario_id: auth.user.id,
       items: carrito.items.map(i => ({ producto_id: i.producto_id, cantidad: i.cantidad, precio_unitario: i.precio_unitario })),
@@ -131,11 +136,20 @@ async function finalizar() {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.message || 'Error al crear pedido')
+    
+    // Limpiar carrito y formulario
     carrito.vaciar()
+    Object.assign(facturacion, { nombre: '', identificacion: '', direccion: '', telefono: '' })
+    
     status.value = `Pedido creado #${data.id}`
     
-    // Limpiar formulario
-    Object.assign(facturacion, { nombre: '', identificacion: '', direccion: '', telefono: '' })
+    // Emitir evento para actualizar el catálogo
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pedidoCreado', { 
+        detail: { pedidoId: data.id } 
+      }))
+    }
+    
   } catch (e: any) {
     status.value = `Error: ${e.message}`
   } finally {
