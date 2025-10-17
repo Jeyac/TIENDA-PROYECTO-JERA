@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 
 from funcionalidades.core.infraestructura.auth import jwt_required
 from funcionalidades.core.exceptions import BadRequestError, NotFoundError
@@ -13,6 +13,22 @@ from funcionalidades.core.infraestructura.database import db
 
 productos_bp = Blueprint('productos', __name__)
 repo = ProductoRepositoryImpl()
+
+@productos_bp.before_request
+def productos_preflight_handler():
+    """Manejador de preflight CORS para productos"""
+    if request.method == 'OPTIONS':
+        resp = make_response('', 200)
+        origin = request.headers.get('Origin')
+        if origin:
+            resp.headers['Access-Control-Allow-Origin'] = origin
+            resp.headers['Vary'] = 'Origin'
+        req_headers = request.headers.get('Access-Control-Request-Headers') or 'Content-Type, Authorization'
+        resp.headers['Access-Control-Allow-Headers'] = req_headers
+        resp.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Access-Control-Max-Age'] = '600'
+        return resp
 
 
 @productos_bp.route('/', methods=['POST', 'OPTIONS'])
@@ -215,12 +231,34 @@ def actualizar_producto(producto_id: int):
 @productos_bp.route('/<int:producto_id>', methods=['DELETE', 'OPTIONS'])
 @jwt_required(roles={'administrador'})
 def eliminar_producto(producto_id: int):
+    print(f"=== Eliminando producto {producto_id} ===")
     try:
+        # Verificar que el producto existe antes de intentar eliminarlo
+        from funcionalidades.productos.infrastructure.producto_model import ProductoModel
+        producto = ProductoModel.query.get(producto_id)
+        
+        if not producto:
+            print(f"Producto {producto_id} no encontrado")
+            return jsonify({'message': 'Producto no encontrado'}), 404
+        
+        print(f"Producto encontrado: {producto.titulo}")
+        
+        # Usar el caso de uso para eliminar
         use_case = EliminarProductoUseCase(repo)
         use_case.ejecutar(producto_id)
-        return jsonify({'message': 'Eliminado'})
+        
+        print(f"Producto {producto_id} eliminado exitosamente")
+        return jsonify({'message': 'Producto eliminado exitosamente'})
+        
     except NotFoundError as exc:
+        print(f"NotFoundError: {exc}")
         return jsonify({'message': str(exc)}), 404
+    except Exception as exc:
+        print(f"Error eliminando producto {producto_id}: {exc}")
+        import traceback
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'message': f'Error interno del servidor: {str(exc)}'}), 500
 
 
 @productos_bp.get('/categorias')

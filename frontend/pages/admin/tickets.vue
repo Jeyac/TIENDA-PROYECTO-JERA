@@ -103,7 +103,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="ticket in tickets" :key="ticket.id">
+                <tr v-for="ticket in tickets" :key="ticket.id" :class="getTicketRowClass(ticket)">
                   <td>
                     <span class="badge bg-secondary">#{{ ticket.id }}</span>
                   </td>
@@ -132,7 +132,9 @@
                     <span v-if="ticket.assignee_name" class="badge bg-primary">
                       {{ ticket.assignee_name }}
                     </span>
-                    <span v-else class="text-muted">Sin asignar</span>
+                    <span v-else class="badge bg-warning text-dark">
+                      <i class="bi bi-exclamation-triangle me-1"></i>Sin asignar
+                    </span>
                   </td>
                   <td>
                     <div>{{ formatDate(ticket.created_at) }}</div>
@@ -410,6 +412,14 @@ const getStatusText = (status: string) => {
   return texts[status as keyof typeof texts] || status
 }
 
+const getTicketRowClass = (ticket: any) => {
+  // Iluminar tickets sin asignar
+  if (!ticket.assignee_name) {
+    return 'table-warning border-warning border-3'
+  }
+  return ''
+}
+
 const getPriorityBadgeClass = (priority: string) => {
   const classes = {
     'baja': 'badge bg-success',
@@ -459,5 +469,15 @@ onMounted(() => {
 
 .modal {
   z-index: 1055;
+}
+
+/* Resaltado para tickets sin asignar */
+.table-warning {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  border-left: 4px solid #ffc107 !important;
+}
+
+.table-warning:hover {
+  background-color: rgba(255, 193, 7, 0.2) !important;
 }
 </style>

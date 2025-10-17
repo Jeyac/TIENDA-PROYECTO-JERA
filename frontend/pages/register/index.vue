@@ -19,14 +19,19 @@
                   v-model="form.username"
                   type="text"
                   class="form-control"
+                  :class="{ 'is-invalid': usernameError, 'is-valid': form.username && !usernameError && form.username.length >= 3 }"
                   id="username"
                   placeholder="Ingresa tu nombre de usuario"
                   required
                   minlength="3"
                   maxlength="50"
                   :disabled="auth.isLoading"
+                  @blur="validateUsername"
                 >
-                <div class="form-text">
+                <div v-if="usernameError" class="invalid-feedback">
+                  <i class="bi bi-exclamation-triangle me-1"></i>{{ usernameError }}
+                </div>
+                <div v-else class="form-text">
                   <i class="bi bi-info-circle me-1"></i>Mínimo 3 caracteres, máximo 50
                 </div>
               </div>
@@ -39,11 +44,16 @@
                   v-model="form.email"
                   type="email"
                   class="form-control"
+                  :class="{ 'is-invalid': emailError, 'is-valid': form.email && !emailError && isValidEmail }"
                   id="email"
                   placeholder="tu@correo.com"
                   required
                   :disabled="auth.isLoading"
+                  @blur="validateEmail"
                 >
+                <div v-if="emailError" class="invalid-feedback">
+                  <i class="bi bi-exclamation-triangle me-1"></i>{{ emailError }}
+                </div>
               </div>
 
               <div class="mb-3">
@@ -183,15 +193,28 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const successMessage = ref('')
 
+// Validation errors
+const usernameError = ref('')
+const emailError = ref('')
+
 // Password validation computed properties
 const hasUppercase = computed(() => /[A-Z]/.test(form.password))
 const hasLowercase = computed(() => /[a-z]/.test(form.password))
 const hasNumber = computed(() => /\d/.test(form.password))
 
+// Email validation
+const isValidEmail = computed(() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return emailRegex.test(form.email)
+})
+
 // Form validation
 const isFormValid = computed(() => {
   return form.username.length >= 3 &&
-         form.email.includes('@') &&
+         form.username.length <= 50 &&
+         !usernameError.value &&
+         isValidEmail.value &&
+         !emailError.value &&
          form.password.length >= 8 &&
          form.password === form.confirm_password &&
          hasUppercase.value &&
@@ -199,24 +222,113 @@ const isFormValid = computed(() => {
          hasNumber.value
 })
 
+// Validation functions
+const validateUsername = async () => {
+  usernameError.value = ''
+  
+  if (!form.username) {
+    usernameError.value = 'El nombre de usuario es requerido'
+    return
+  }
+  
+  if (form.username.length < 3) {
+    usernameError.value = 'El nombre de usuario debe tener al menos 3 caracteres'
+    return
+  }
+  
+  if (form.username.length > 50) {
+    usernameError.value = 'El nombre de usuario no puede tener más de 50 caracteres'
+    return
+  }
+  
+  // Verificar disponibilidad en tiempo real (opcional)
+  try {
+    const response = await $fetch('/api/auth/check-username', {
+      method: 'POST',
+      body: { username: form.username }
+    })
+    if (!response.available) {
+      usernameError.value = 'Este nombre de usuario ya está en uso'
+    }
+  } catch (error) {
+    // Si el endpoint no existe, no mostrar error
+    console.log('Username check endpoint not available')
+  }
+}
+
+const validateEmail = async () => {
+  emailError.value = ''
+  
+  if (!form.email) {
+    emailError.value = 'El correo electrónico es requerido'
+    return
+  }
+  
+  if (!isValidEmail.value) {
+    emailError.value = 'Formato de correo electrónico inválido'
+    return
+  }
+  
+  // Verificar disponibilidad en tiempo real (opcional)
+  try {
+    const response = await $fetch('/api/auth/check-email', {
+      method: 'POST',
+      body: { email: form.email }
+    })
+    if (!response.available) {
+      emailError.value = 'Este correo electrónico ya está registrado'
+    }
+  } catch (error) {
+    // Si el endpoint no existe, no mostrar error
+    console.log('Email check endpoint not available')
+  }
+}
+
 // Handle registration
 const handleRegister = async () => {
   if (!isFormValid.value) return
 
+  // Limpiar errores previos
+  usernameError.value = ''
+  emailError.value = ''
+
   // Preparar datos para el backend (sin confirm_password)
   const userData = {
-    username: form.username,
-    email: form.email,
+    username: form.username.trim(),
+    email: form.email.trim().toLowerCase(),
     password: form.password
   }
 
-  const result = await auth.register(userData)
-  
-  if (result.success) {
-    successMessage.value = result.message || 'Cuenta creada exitosamente'
-    setTimeout(async () => {
-      await navigateTo('/login')
-    }, 2000)
+  try {
+    const result = await auth.register(userData)
+    
+    if (result.success) {
+      successMessage.value = result.message || 'Cuenta creada exitosamente'
+      setTimeout(async () => {
+        await navigateTo('/login')
+      }, 2000)
+    } else {
+      // Manejar errores específicos del backend
+      if (result.error) {
+        if (result.error.includes('username') && result.error.includes('uso')) {
+          usernameError.value = 'Este nombre de usuario ya está en uso'
+        } else if (result.error.includes('email') && result.error.includes('registrado')) {
+          emailError.value = 'Este correo electrónico ya está registrado'
+        } else if (result.error.includes('caracteres')) {
+          if (result.error.includes('username')) {
+            usernameError.value = result.error
+          } else if (result.error.includes('contraseña')) {
+            // Mostrar error general de contraseña
+            auth.error = result.error
+          }
+        } else {
+          auth.error = result.error
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error en registro:', error)
+    auth.error = 'Error al crear la cuenta. Intenta de nuevo.'
   }
 }
 

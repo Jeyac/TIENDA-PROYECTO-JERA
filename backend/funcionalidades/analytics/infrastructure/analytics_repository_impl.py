@@ -15,9 +15,10 @@ from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
 
 class AnalyticsRepositoryImpl(AnalyticsRepository):
     def get_conversation_analytics(self, start_date: datetime, end_date: datetime) -> ConversationAnalytics:
-        # Total de conversaciones
+        # Total de conversaciones (solo activas, excluyendo borradas)
         total_conversations = ConversationModel.query.filter(
-            ConversationModel.created_at >= start_date
+            ConversationModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).count()
         
         # Conversaciones activas
@@ -26,32 +27,36 @@ class AnalyticsRepositoryImpl(AnalyticsRepository):
             ConversationModel.created_at >= start_date
         ).count()
         
-        # Total de mensajes
-        total_messages = ChatMessageModel.query.filter(
-            ChatMessageModel.created_at >= start_date
+        # Total de mensajes (solo de conversaciones activas)
+        total_messages = db.session.query(ChatMessageModel).join(ConversationModel).filter(
+            ChatMessageModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).count()
         
-        # Mensajes por tipo
-        user_messages = ChatMessageModel.query.filter(
+        # Mensajes por tipo (solo de conversaciones activas)
+        user_messages = db.session.query(ChatMessageModel).join(ConversationModel).filter(
             ChatMessageModel.role == 'user',
-            ChatMessageModel.created_at >= start_date
+            ChatMessageModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).count()
         
-        bot_messages = ChatMessageModel.query.filter(
+        bot_messages = db.session.query(ChatMessageModel).join(ConversationModel).filter(
             ChatMessageModel.role == 'assistant',
-            ChatMessageModel.created_at >= start_date
+            ChatMessageModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).count()
         
         # Promedio de mensajes por conversación
         avg_messages_per_conversation = total_messages / total_conversations if total_conversations > 0 else 0
         
-        # Temas más preguntados
-        user_messages_content = db.session.query(ChatMessageModel.content).filter(
+        # Temas más preguntados (solo de conversaciones activas)
+        user_messages_content = db.session.query(ChatMessageModel.content).join(ConversationModel).filter(
             ChatMessageModel.role == 'user',
-            ChatMessageModel.created_at >= start_date
+            ChatMessageModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).all()
         
-        print(f"🔍 ANALYTICS REPO: Encontrados {len(user_messages_content)} mensajes de usuario")
+        print(f"🔍 ANALYTICS REPO: Encontrados {len(user_messages_content)} mensajes de usuario (solo conversaciones activas)")
         if user_messages_content:
             print(f"📝 ANALYTICS REPO: Primeros 3 mensajes:")
             for i, msg in enumerate(user_messages_content[:3], 1):
@@ -60,13 +65,14 @@ class AnalyticsRepositoryImpl(AnalyticsRepository):
         most_common_topics = self._extract_keywords([msg[0] for msg in user_messages_content])
         print(f"📊 ANALYTICS REPO: Extraídos {len(most_common_topics)} temas")
         
-        # Respuestas más frecuentes del bot
-        bot_messages_content = db.session.query(ChatMessageModel.content).filter(
+        # Respuestas más frecuentes del bot (solo de conversaciones activas)
+        bot_messages_content = db.session.query(ChatMessageModel.content).join(ConversationModel).filter(
             ChatMessageModel.role == 'assistant',
-            ChatMessageModel.created_at >= start_date
+            ChatMessageModel.created_at >= start_date,
+            ConversationModel.is_active == True
         ).all()
         
-        print(f"🔍 ANALYTICS REPO: Encontrados {len(bot_messages_content)} mensajes del bot")
+        print(f"🔍 ANALYTICS REPO: Encontrados {len(bot_messages_content)} mensajes del bot (solo conversaciones activas)")
         if bot_messages_content:
             print(f"📝 ANALYTICS REPO: Primeros 3 mensajes del bot:")
             for i, msg in enumerate(bot_messages_content[:3], 1):
@@ -313,23 +319,23 @@ class AnalyticsRepositoryImpl(AnalyticsRepository):
             print("📊 RESPONSES: No hay respuestas para procesar")
             return []
         
-        # Filtrar respuestas muy cortas o genéricas
+        # Filtrar y normalizar respuestas
         filtered_responses = []
-        generic_responses = {
-            'hola', 'gracias', 'de nada', 'por favor', 'disculpa', 'lo siento',
-            'entendido', 'perfecto', 'excelente', 'claro', 'sí', 'no', 'ok',
-            'bueno', 'bien', 'mal', 'genial', 'fantástico', 'increíble'
-        }
+        generic_patterns = [
+            r'^hola.*', r'^gracias.*', r'^de nada.*', r'^por favor.*', 
+            r'^disculpa.*', r'^lo siento.*', r'^entendido.*', r'^perfecto.*',
+            r'^excelente.*', r'^claro.*', r'^sí.*', r'^no.*', r'^ok.*',
+            r'^bueno.*', r'^bien.*', r'^mal.*', r'^genial.*', r'^fantástico.*',
+            r'^increíble.*', r'^conectado.*', r'^error.*', r'^disculpe.*'
+        ]
         
         for response in responses:
             # Limpiar la respuesta
-            clean_response = response.strip().lower()
+            clean_response = response.strip()
             
-            # Filtrar respuestas muy cortas o genéricas
-            if (len(clean_response) > 20 and 
-                not any(generic in clean_response for generic in generic_responses) and
-                not clean_response.startswith('conectado') and
-                not clean_response.startswith('error')):
+            # Filtrar respuestas muy cortas, muy largas o genéricas
+            if (20 < len(clean_response) < 500 and 
+                not any(re.match(pattern, clean_response.lower()) for pattern in generic_patterns)):
                 filtered_responses.append(clean_response)
         
         print(f"🔤 RESPONSES: Después de filtrar: {len(filtered_responses)} respuestas")
@@ -338,28 +344,33 @@ class AnalyticsRepositoryImpl(AnalyticsRepository):
             print("📊 RESPONSES: No hay respuestas válidas después del filtrado")
             return []
         
-        # Contar respuestas similares (usando similitud básica)
-        response_counts = {}
+        # Agrupar respuestas similares usando similitud mejorada
+        response_groups = {}
+        
         for response in filtered_responses:
-            # Buscar respuestas similares (mismo inicio)
-            found_similar = False
-            for existing_response in response_counts:
-                if (response.startswith(existing_response[:30]) or 
-                    existing_response.startswith(response[:30])):
-                    response_counts[existing_response] += 1
-                    found_similar = True
+            # Normalizar para comparación
+            normalized = self._normalize_response(response)
+            
+            # Buscar grupo similar existente
+            found_group = False
+            for group_key in response_groups:
+                if self._are_responses_similar(normalized, group_key):
+                    response_groups[group_key].append(response)
+                    found_group = True
                     break
             
-            if not found_similar:
-                response_counts[response] = 1
+            if not found_group:
+                response_groups[normalized] = [response]
         
         # Convertir a lista de diccionarios
         result = []
-        for response, count in response_counts.items():
-            if count > 1:  # Solo incluir respuestas que aparecen más de una vez
+        for group_key, group_responses in response_groups.items():
+            if len(group_responses) > 1:  # Solo grupos con más de una respuesta
+                # Usar la respuesta más representativa del grupo
+                representative = max(group_responses, key=len)
                 result.append({
-                    'respuesta': response[:100] + '...' if len(response) > 100 else response,
-                    'frecuencia': count
+                    'respuesta': representative[:150] + '...' if len(representative) > 150 else representative,
+                    'frecuencia': len(group_responses)
                 })
         
         # Ordenar por frecuencia
@@ -373,16 +384,51 @@ class AnalyticsRepositoryImpl(AnalyticsRepository):
                 print(f"    {i}. '{resp['respuesta'][:50]}...' - {resp['frecuencia']} veces")
         
         return result
+    
+    def _normalize_response(self, response: str) -> str:
+        """Normalizar respuesta para comparación"""
+        # Convertir a minúsculas
+        normalized = response.lower()
+        
+        # Remover caracteres especiales y espacios extra
+        normalized = re.sub(r'[^\w\s]', ' ', normalized)
+        normalized = re.sub(r'\s+', ' ', normalized).strip()
+        
+        # Remover palabras comunes que no aportan significado
+        stop_words = {'el', 'la', 'los', 'las', 'un', 'una', 'de', 'del', 'en', 'con', 'por', 'para', 'que', 'es', 'son', 'está', 'están', 'tiene', 'tienen', 'puede', 'pueden', 'ser', 'estar', 'tener', 'hacer', 'decir', 'ver', 'saber', 'ir', 'venir', 'dar', 'tomar', 'llevar', 'traer', 'poner', 'quitar', 'abrir', 'cerrar', 'empezar', 'terminar', 'comenzar', 'acabar', 'seguir', 'continuar', 'parar', 'detener', 'buscar', 'encontrar', 'perder', 'ganar', 'comprar', 'vender', 'pagar', 'cobrar', 'gastar', 'ahorrar', 'invertir', 'trabajar', 'estudiar', 'aprender', 'enseñar', 'ayudar', 'servir', 'atender', 'cuidar', 'proteger', 'defender', 'atacar', 'luchar', 'pelear', 'discutir', 'hablar', 'conversar', 'preguntar', 'responder', 'explicar', 'entender', 'comprender', 'pensar', 'creer', 'saber', 'conocer', 'recordar', 'olvidar', 'imaginar', 'soñar', 'desear', 'querer', 'necesitar', 'preferir', 'elegir', 'decidir', 'aceptar', 'rechazar', 'aprobar', 'desaprobar', 'gustar', 'amar', 'odiar', 'temer', 'sufrir', 'disfrutar', 'divertir', 'reír', 'llorar', 'sonreír', 'gritar', 'callar', 'escuchar', 'oír', 'mirar', 'ver', 'observar', 'notar', 'darse', 'cuenta', 'realizar', 'hacer', 'crear', 'construir', 'destruir', 'romper', 'arreglar', 'reparar', 'mejorar', 'empeorar', 'cambiar', 'modificar', 'transformar', 'convertir', 'volver', 'regresar', 'volver', 'a', 'empezar', 'de', 'nuevo', 'repetir', 'continuar', 'seguir', 'adelante', 'atrás', 'arriba', 'abajo', 'dentro', 'fuera', 'aquí', 'allí', 'ahora', 'antes', 'después', 'siempre', 'nunca', 'a veces', 'mucho', 'poco', 'más', 'menos', 'muy', 'bastante', 'demasiado', 'suficiente', 'todo', 'nada', 'algo', 'alguien', 'nadie', 'todos', 'algunos', 'varios', 'muchos', 'pocos', 'cada', 'cualquier', 'otro', 'mismo', 'diferente', 'igual', 'parecido', 'similar', 'distinto', 'nuevo', 'viejo', 'joven', 'grande', 'pequeño', 'alto', 'bajo', 'largo', 'corto', 'ancho', 'estrecho', 'gordo', 'delgado', 'gordo', 'flaco', 'bonito', 'feo', 'bueno', 'malo', 'mejor', 'peor', 'fácil', 'difícil', 'simple', 'complicado', 'rápido', 'lento', 'temprano', 'tarde', 'pronto', 'lejos', 'cerca', 'dentro', 'fuera', 'arriba', 'abajo', 'delante', 'detrás', 'izquierda', 'derecha', 'norte', 'sur', 'este', 'oeste', 'centro', 'medio', 'principio', 'final', 'comienzo', 'termino', 'inicio', 'fin'}
+        
+        words = normalized.split()
+        filtered_words = [word for word in words if word not in stop_words and len(word) > 2]
+        
+        return ' '.join(filtered_words)
+    
+    def _are_responses_similar(self, response1: str, response2: str) -> bool:
+        """Determinar si dos respuestas son similares"""
+        # Si una está contenida en la otra (con un margen de diferencia)
+        if len(response1) > 0 and len(response2) > 0:
+            # Calcular similitud básica por palabras comunes
+            words1 = set(response1.split())
+            words2 = set(response2.split())
+            
+            if len(words1) > 0 and len(words2) > 0:
+                common_words = words1.intersection(words2)
+                similarity = len(common_words) / max(len(words1), len(words2))
+                
+                # Si tienen más del 60% de palabras en común, son similares
+                return similarity > 0.6
+        
+        return False
 
     def _get_daily_conversations(self, start_date: datetime, end_date: datetime) -> List[Dict[str, Any]]:
-        """Obtener conversaciones por día"""
+        """Obtener conversaciones por día (solo activas)"""
         daily_data = []
         current_date = start_date.date()
         end_date_only = end_date.date()
         
         while current_date <= end_date_only:
             count = ConversationModel.query.filter(
-                db.func.date(ConversationModel.created_at) == current_date
+                db.func.date(ConversationModel.created_at) == current_date,
+                ConversationModel.is_active == True
             ).count()
             
             daily_data.append({

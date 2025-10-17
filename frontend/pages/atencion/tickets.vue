@@ -107,6 +107,9 @@
                 <div class="col-md-2">
                   <button class="btn btn-outline-primary w-100" @click="loadTickets">
                     <i class="bi bi-arrow-clockwise"></i> Actualizar
+                    <span v-if="hasAnyUnreadMessages" class="badge bg-danger ms-1 animate-pulse">
+                      {{ unreadCount }}
+                    </span>
                   </button>
                 </div>
               </div>
@@ -155,7 +158,7 @@
                 <tr v-for="ticket in filteredTickets" :key="ticket.id" :class="getTicketRowClass(ticket)">
                   <td class="fw-bold">
                     #{{ ticket.id }}
-                    <span v-if="hasUnreadMessages(ticket)" class="badge bg-danger ms-1" title="Nuevos mensajes">
+                    <span v-if="hasUnreadMessages(ticket)" class="badge bg-danger ms-1 animate-pulse" title="Nuevos mensajes">
                       <i class="bi bi-chat-dots-fill"></i>
                     </span>
                   </td>
@@ -167,7 +170,7 @@
                   </td>
                   <td>
                     {{ ticket.title }}
-                    <span v-if="hasUnreadMessages(ticket)" class="badge bg-warning ms-1">Nuevo</span>
+                    <span v-if="hasUnreadMessages(ticket)" class="badge bg-warning ms-1 animate-pulse">Nuevo</span>
                   </td>
                   <td>
                     <span class="badge" :class="getStatusBadgeClass(ticket.status)">
@@ -184,7 +187,7 @@
                   <td>
                     <button @click="viewTicket(ticket)" class="btn btn-sm btn-primary">
                       <i class="bi bi-gear me-1"></i>Gestionar
-                      <span v-if="hasUnreadMessages(ticket)" class="badge bg-danger ms-1">!</span>
+                      <span v-if="hasUnreadMessages(ticket)" class="badge bg-danger ms-1 animate-pulse">!</span>
                     </button>
                   </td>
                 </tr>
@@ -278,8 +281,8 @@
                     <!-- Messages -->
                     <div class="chat-messages mb-3" style="height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 1rem; border-radius: 0.375rem;">
                       <div v-for="activity in selectedTicket.activities?.filter((a: any) => a.activity_type === 'message')" :key="activity.id" class="mb-3">
-                        <div :class="activity.user_rol === 'atencion_cliente' ? 'text-end' : 'text-start'">
-                          <div :class="activity.user_rol === 'atencion_cliente' ? 'bg-primary text-white' : 'bg-light'" 
+                        <div :class="activity.user_id === auth.user?.id ? 'text-end' : 'text-start'">
+                          <div :class="activity.user_id === auth.user?.id ? 'bg-primary text-white' : 'bg-light'" 
                                class="d-inline-block p-2 rounded" style="max-width: 70%;">
                             <div class="fw-bold">{{ activity.user_name }}</div>
                             <div>{{ activity.description }}</div>
@@ -414,6 +417,15 @@ const filteredTickets = computed(() => {
   return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 })
 
+// Contar mensajes no leídos
+const unreadCount = computed(() => {
+  return tickets.value.filter(ticket => hasUnreadMessages(ticket)).length
+})
+
+const hasAnyUnreadMessages = computed(() => {
+  return unreadCount.value > 0
+})
+
 // Methods
 const loadTickets = async () => {
   loading.value = true
@@ -442,6 +454,8 @@ const loadTickets = async () => {
 }
 
 const viewTicket = async (ticket: { id: number }) => {
+  console.log('📥 ATENCION CHAT: Cargando ticket:', ticket.id)
+  
   try {
     // Cargar detalles
     const resTicket = await fetch(`${config.public.apiBase}/api/tickets/${ticket.id}`, {
@@ -456,6 +470,7 @@ const viewTicket = async (ticket: { id: number }) => {
     }
     
     const ticketData = await resTicket.json()
+    console.log('📥 ATENCION CHAT: Datos del ticket cargados')
     
     // Cargar actividades
     const resActivities = await fetch(`${config.public.apiBase}/api/tickets/${ticket.id}/activities`, {
@@ -464,15 +479,48 @@ const viewTicket = async (ticket: { id: number }) => {
       }
     })
     
+    console.log('📥 ATENCION CHAT: Respuesta actividades:', resActivities.status, resActivities.ok)
+    
     if (resActivities.ok) {
-      ticketData.activities = await resActivities.json()
+      const activities = await resActivities.json()
+      console.log('📥 ATENCION CHAT: Actividades recibidas:', activities.length)
+      console.log('📥 ATENCION CHAT: Actividades:', activities)
+      
+      // Mostrar la estructura de cada actividad
+      activities.forEach((activity: any, index: number) => {
+        console.log(`📥 ATENCION CHAT: Actividad ${index}:`, {
+          id: activity.id,
+          activity_type: activity.activity_type,
+          description: activity.description,
+          user_name: activity.user_name,
+          user_rol: activity.user_rol,
+          created_at: activity.created_at
+        })
+      })
+      
+      const messages = activities.filter((activity: any) => activity.activity_type === 'message')
+      console.log('📥 ATENCION CHAT: Mensajes filtrados:', messages.length)
+      console.log('📥 ATENCION CHAT: Mensajes:', messages)
+      
+      ticketData.activities = activities
     } else {
       ticketData.activities = []
     }
     
     selectedTicket.value = ticketData
+    console.log('📥 ATENCION CHAT: Ticket asignado con', selectedTicket.value.activities?.length || 0, 'actividades')
     updateForm.status = ticketData.status
     showDetailsModal.value = true
+    
+    // Solo marcar como visto si había mensajes no leídos
+    if (hasUnreadMessages(ticketData)) {
+      markTicketAsViewed(ticket.id)
+    }
+    
+    // Hacer scroll al final del chat
+    setTimeout(() => {
+      scrollToBottom()
+    }, 100)
     
   } catch (err) {
     console.error('Error:', err)
@@ -510,6 +558,10 @@ const updateTicket = async () => {
 const sendMessage = async () => {
   if (!newMessage.value.trim() || !selectedTicket.value || isChatDisabled()) return
   
+  console.log('📤 ATENCION CHAT: Enviando mensaje:', newMessage.value)
+  console.log('📤 ATENCION CHAT: Ticket ID:', selectedTicket.value.id)
+  console.log('📤 ATENCION CHAT: Actividades antes:', selectedTicket.value.activities?.length || 0)
+  
   sendingMessage.value = true
   
   try {
@@ -522,10 +574,13 @@ const sendMessage = async () => {
       body: JSON.stringify({ message: newMessage.value })
     })
     
+    console.log('📤 ATENCION CHAT: Respuesta del servidor:', res.status, res.ok)
+    
     if (res.ok) {
       newMessage.value = ''
-      // Recargar el ticket para obtener los nuevos mensajes
-      await viewTicket(selectedTicket.value)
+      console.log('📤 ATENCION CHAT: Mensaje enviado exitosamente, recargando...')
+      // Recargar solo los datos del ticket sin marcar como visto
+      await reloadTicketData(selectedTicket.value.id)
     } else if (res.status === 401) {
       await auth.logout()
     }
@@ -560,27 +615,74 @@ const getChatDisabledMessage = () => {
   return ''
 }
 
-const hasUnreadMessages = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
+const hasUnreadMessages = (ticket: { id: number; activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
   // No mostrar notificaciones en tickets cerrados o resueltos
   if (ticket.status === 'cerrado' || ticket.status === 'resuelto') return false
   
   if (!ticket.activities || ticket.activities.length === 0) return false
   
-  // Obtener todos los mensajes ordenados por fecha
-  const messages = ticket.activities
-    .filter((activity) => activity.activity_type === 'message')
-    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  
+  // Obtener todos los mensajes
+  const messages = ticket.activities.filter((activity) => activity.activity_type === 'message')
   if (messages.length === 0) return false
   
-  // Si el último mensaje es del cliente, hay un mensaje no leído
-  const lastMessage = messages[messages.length - 1]
-  return lastMessage && lastMessage.user_rol === 'cliente'
+  // Obtener la última vez que se vio este ticket
+  const lastViewedKey = `ticket_${ticket.id}_last_viewed`
+  const lastViewed = localStorage.getItem(lastViewedKey)
+  
+  if (!lastViewed) {
+    // Si nunca se ha visto, mostrar notificación
+    return true
+  }
+  
+  // Buscar si hay mensajes más recientes que la última vez que se vio
+  const lastViewedTime = new Date(lastViewed).getTime()
+  return messages.some(message => new Date(message.created_at).getTime() > lastViewedTime)
 }
 
-const getTicketRowClass = (ticket: { activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
+const markTicketAsViewed = (ticketId: number) => {
+  const lastViewedKey = `ticket_${ticketId}_last_viewed`
+  localStorage.setItem(lastViewedKey, new Date().toISOString())
+  console.log('👁️ TICKET: Marcado como visto:', ticketId)
+}
+
+const reloadTicketData = async (ticketId: number) => {
+  try {
+    // Cargar actividades
+    const resActivities = await fetch(`${config.public.apiBase}/api/tickets/${ticketId}/activities`, {
+      headers: {
+        'Authorization': `Bearer ${auth.token}`
+      }
+    })
+    
+    if (resActivities.ok) {
+      const activities = await resActivities.json()
+      console.log('🔄 RELOAD: Actividades recargadas:', activities.length)
+      
+      // Actualizar las actividades del ticket seleccionado
+      if (selectedTicket.value) {
+        selectedTicket.value.activities = activities
+      }
+      
+      // Hacer scroll al final después de recargar
+      setTimeout(() => {
+        scrollToBottom()
+      }, 100)
+    }
+  } catch (err) {
+    console.error('Error recargando datos del ticket:', err)
+  }
+}
+
+const scrollToBottom = () => {
+  const chatContainer = document.querySelector('.chat-messages')
+  if (chatContainer) {
+    chatContainer.scrollTop = chatContainer.scrollHeight
+  }
+}
+
+const getTicketRowClass = (ticket: { id: number; activities?: Array<{ activity_type: string; user_rol: string; created_at: string }>; status?: string }) => {
   if (hasUnreadMessages(ticket)) {
-    return 'table-warning'
+    return 'table-warning border-warning border-3'
   }
   return ''
 }
@@ -663,6 +765,18 @@ const { $formatDate: formatDate } = useNuxtApp()
 onMounted(() => {
   if (auth.isAuthenticated) {
     loadTickets()
+    
+    // Actualizar automáticamente cada 30 segundos
+    const interval = setInterval(() => {
+      if (auth.isAuthenticated) {
+        loadTickets()
+      }
+    }, 30000)
+    
+    // Limpiar el intervalo cuando el componente se desmonte
+    onUnmounted(() => {
+      clearInterval(interval)
+    })
   }
 })
 </script>
@@ -717,6 +831,33 @@ onMounted(() => {
   padding: 1rem;
   border-radius: 0.5rem;
   border-left: 3px solid var(--bs-primary);
+}
+
+/* Animación de pulso para notificaciones */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Resaltado mejorado para tickets con mensajes no leídos */
+.table-warning {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  border-left: 4px solid #ffc107 !important;
+}
+
+.table-warning:hover {
+  background-color: rgba(255, 193, 7, 0.2) !important;
 }
 
 </style>

@@ -1,0 +1,52 @@
+services:
+  # Backend (Flask API)
+  - type: web
+    name: tienda-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && python app.py
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DB_NAME
+        value: neondb
+      - key: DB_USER
+        value: neondb_owner
+      - key: DB_PASSWORD
+        sync: false  # Configurar manualmente
+      - key: DB_HOST
+        value: ep-broad-violet-ad1tmk0n-pooler.c-2.us-east-1.aws.neon.tech
+      - key: DB_PORT
+        value: "5432"
+      - key: JWT_SECRET
+        sync: false  # Configurar manualmente
+      - key: JWT_EXPIRES_MINUTES
+        value: "3"
+      - key: JWT_REFRESH_EXPIRES_MINUTES
+        value: "60"
+      - key: OPENAI_API_KEY
+        sync: false  # Configurar manualmente
+      - key: SMTP_SERVER
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        value: jacevedoj@miumg.edu.gt
+      - key: SMTP_PASSWORD
+        sync: false  # Configurar manualmente
+      - key: FROM_EMAIL
+        value: jacevedoj@miumg.edu.gt
+      - key: FRONTEND_URL
+        value: https://tienda-frontend.onrender.com
+
+  # Frontend (Nuxt.js)
+  - type: web
+    name: tienda-frontend
+    env: static
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/.output/public
+    envVars:
+      - key: NUXT_PUBLIC_API_BASE
+        value: https://tienda-backend.onrender.com

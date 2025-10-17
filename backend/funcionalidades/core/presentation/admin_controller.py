@@ -7,6 +7,7 @@ from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
 from funcionalidades.productos.infrastructure.producto_model import ProductoModel
 from funcionalidades.pedidos.infrastructure.pedido_model import PedidoModel
 from funcionalidades.chatlog.infrastructure.chat_message_model import ChatMessageModel
+from funcionalidades.chatlog.infrastructure.conversation_model import ConversationModel
 from funcionalidades.rag.infrastructure.documento_model import DocumentoModel, DocumentoChunkModel
 from funcionalidades.rag.infrastructure.embedder_openai import OpenAIEmbedder
 from funcionalidades.categorias.infrastructure.categoria_model import CategoriaModel
@@ -182,29 +183,34 @@ def get_chats():
 @admin_bp.route('/chats/<chat_id>', methods=['DELETE', 'OPTIONS'])
 @jwt_required(roles={'administrador'})
 def delete_chat(chat_id):
-    """Eliminar un chat específico o conversación completa"""
+    """Marcar como inactiva una conversación específica"""
     if request.method == 'OPTIONS':
         return jsonify({'message': 'OK'}), 200
     
     try:
-        print(f"DEBUG: Eliminando chat/conversación: {chat_id}")
+        print(f"DEBUG: Marcando como inactiva la conversación: {chat_id}")
         
         if chat_id == 'anonimo':
-            # Eliminar todos los mensajes sin usuario_id
-            deleted_count = ChatMessageModel.query.filter_by(user_id=None).delete()
+            # Marcar como inactivas todas las conversaciones sin usuario_id
+            conversations = ConversationModel.query.filter_by(user_id=None, is_active=True).all()
+            for conv in conversations:
+                conv.is_active = False
             db.session.commit()
-            print(f"DEBUG: Eliminados {deleted_count} mensajes anónimos")
+            print(f"DEBUG: Marcadas como inactivas {len(conversations)} conversaciones anónimas")
+            return jsonify({'message': f'Chat eliminado correctamente. {len(conversations)} conversaciones marcadas como inactivas.'})
         else:
-            # Eliminar mensajes de un usuario específico
+            # Marcar como inactivas las conversaciones de un usuario específico
             try:
                 user_id = int(chat_id)
-                deleted_count = ChatMessageModel.query.filter_by(user_id=user_id).delete()
+                conversations = ConversationModel.query.filter_by(user_id=user_id, is_active=True).all()
+                for conv in conversations:
+                    conv.is_active = False
                 db.session.commit()
-                print(f"DEBUG: Eliminados {deleted_count} mensajes del usuario {user_id}")
+                print(f"DEBUG: Marcadas como inactivas {len(conversations)} conversaciones del usuario {user_id}")
+                return jsonify({'message': f'Chat eliminado correctamente. {len(conversations)} conversaciones marcadas como inactivas.'})
             except ValueError:
                 return jsonify({'error': 'ID de chat inválido'}), 400
         
-        return jsonify({'message': f'Chat eliminado correctamente. {deleted_count} mensajes eliminados.'})
     except Exception as e:
         print(f"Error eliminando chat: {e}")
         db.session.rollback()
@@ -214,21 +220,23 @@ def delete_chat(chat_id):
 @admin_bp.route('/chats/clear', methods=['DELETE', 'OPTIONS'])
 @jwt_required(roles={'administrador'})
 def clear_all_chats():
-    """Eliminar todos los chats de la base de datos"""
+    """Marcar como inactivas todas las conversaciones"""
     if request.method == 'OPTIONS':
         return jsonify({'message': 'OK'}), 200
     
     try:
-        print("DEBUG: Limpiando todos los chats...")
+        print("DEBUG: Marcando como inactivas todas las conversaciones...")
         
-        # Eliminar todos los mensajes de chat
-        deleted_count = ChatMessageModel.query.delete()
+        # Marcar como inactivas todas las conversaciones activas
+        conversations = ConversationModel.query.filter_by(is_active=True).all()
+        for conv in conversations:
+            conv.is_active = False
         db.session.commit()
         
-        print(f"DEBUG: Eliminados {deleted_count} mensajes de chat")
+        print(f"DEBUG: Marcadas como inactivas {len(conversations)} conversaciones")
         
         return jsonify({
-            'message': f'Todos los chats han sido eliminados correctamente. {deleted_count} mensajes eliminados.'
+            'message': f'Todos los chats han sido eliminados correctamente. {len(conversations)} conversaciones marcadas como inactivas.'
         })
     except Exception as e:
         print(f"Error limpiando chats: {e}")

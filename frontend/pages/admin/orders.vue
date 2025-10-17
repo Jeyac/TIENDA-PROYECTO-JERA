@@ -217,7 +217,13 @@
                     <BaseButton variant="outline-primary" class="btn-sm" @click="viewOrder(order)" title="Ver detalles">
                       <i class="bi bi-eye"></i>
                     </BaseButton>
-                    <BaseButton variant="outline-success" class="btn-sm" @click="updateStatus(order)" title="Cambiar estado">
+                    <BaseButton 
+                      variant="outline-success" 
+                      class="btn-sm" 
+                      @click="updateStatus(order)" 
+                      :disabled="order.estado === 'cancelado'"
+                      :title="order.estado === 'cancelado' ? 'No se puede modificar un pedido cancelado' : 'Cambiar estado'"
+                    >
                       <i class="bi bi-pencil"></i>
                     </BaseButton>
                   </div>
@@ -338,7 +344,11 @@
               <button type="button" class="btn-close" @click="showStatusModal = false"></button>
             </div>
             <div class="modal-body">
-              <div class="mb-3">
+              <div v-if="selectedOrder && selectedOrder.estado === 'cancelado'" class="alert alert-warning" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Pedido cancelado:</strong> No se puede modificar el estado de un pedido que ha sido cancelado.
+              </div>
+              <div v-else class="mb-3">
                 <label for="newStatus" class="form-label">Nuevo estado</label>
                 <select v-model="newStatus" class="form-select" id="newStatus">
                   <option value="pendiente">Pendiente</option>
@@ -353,7 +363,12 @@
               <BaseButton variant="secondary" @click="showStatusModal = false">
                 Cancelar
               </BaseButton>
-              <BaseButton variant="primary" @click="confirmStatusUpdate" :loading="updating" :disabled="updating">
+              <BaseButton 
+                variant="primary" 
+                @click="confirmStatusUpdate" 
+                :loading="updating" 
+                :disabled="updating || (selectedOrder && selectedOrder.estado === 'cancelado')"
+              >
                 {{ updating ? 'Actualizando...' : 'Actualizar' }}
               </BaseButton>
             </div>
@@ -494,6 +509,12 @@ const viewOrder = (order: any) => {
 }
 
 const updateStatus = (order: any) => {
+  // Verificar que el pedido no esté cancelado
+  if (order.estado === 'cancelado') {
+    alert('No se puede modificar el estado de un pedido cancelado')
+    return
+  }
+  
   selectedOrder.value = order
   newStatus.value = order.estado || 'pendiente'
   showStatusModal.value = true
@@ -501,6 +522,12 @@ const updateStatus = (order: any) => {
 
 const confirmStatusUpdate = async () => {
   if (!selectedOrder.value) return
+  
+  // Verificar que el pedido no esté cancelado
+  if (selectedOrder.value.estado === 'cancelado') {
+    alert('No se puede modificar el estado de un pedido cancelado')
+    return
+  }
   
   updating.value = true
   

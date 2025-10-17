@@ -56,7 +56,7 @@ class TicketActivity:
         if not self.activity_type or not self.activity_type.strip():
             raise BadRequestError('El tipo de actividad es obligatorio')
         
-        valid_activity_types = {'created', 'updated', 'assigned', 'closed', 'commented'}
+        valid_activity_types = {'created', 'updated', 'assigned', 'closed', 'commented', 'message'}
         if self.activity_type not in valid_activity_types:
             raise BadRequestError('Tipo de actividad inválido')
         

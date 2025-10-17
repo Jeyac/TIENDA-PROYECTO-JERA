@@ -1,6 +1,5 @@
 {
-  "name": "nuxt-app",
-  "type": "module",
+  "name": "tienda-frontend",
   "private": true,
   "scripts": {
     "build": "nuxt build",
@@ -9,18 +8,22 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
-  "dependencies": {
-    "@pinia/nuxt": "^0.11.2",
-    "axios": "^1.12.2",
-    "bootstrap": "^5.3.8",
-    "bootstrap-icons": "^1.13.1",
-    "nuxt": "^4.1.2",
-    "pinia": "^3.0.3",
-    "socket.io-client": "^4.8.1",
-    "vue": "^3.5.22",
-    "vue-router": "^4.5.1"
-  },
   "devDependencies": {
-    "@types/node": "^24.7.0"
+    "@nuxt/devtools": "latest",
+    "@pinia/nuxt": "^0.5.1",
+    "bootstrap": "^5.3.2",
+    "bootstrap-icons": "^1.11.1",
+    "nuxt": "^3.8.0",
+    "pinia": "^2.1.7",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@nuxt/devtools": "latest",
+    "@pinia/nuxt": "^0.5.1",
+    "bootstrap": "^5.3.2",
+    "bootstrap-icons": "^1.11.1",
+    "nuxt": "^3.8.0",
+    "pinia": "^2.1.7",
+    "typescript": "^5.2.2"
   }
 }

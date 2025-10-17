@@ -8,6 +8,7 @@ from funcionalidades.core.infraestructura.database import db
 from funcionalidades.usuarios.application.use_cases.registrar_usuario_use_case import RegistrarUsuarioUseCase
 from funcionalidades.usuarios.application.use_cases.autenticar_usuario_use_case import AutenticarUsuarioUseCase
 from funcionalidades.usuarios.infrastructure.usuario_repository_impl import UsuarioRepositoryImpl
+from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
 from funcionalidades.core.exceptions.auth_exceptions import InvalidCredentialsError, AuthorizationError
 from funcionalidades.core.exceptions import NotFoundError, BadRequestError
 
@@ -34,14 +35,44 @@ def register():
             if not data.get(field):
                 return jsonify({'error': f'Campo {field} es requerido'}), 400
         
+        # Validaciones adicionales
+        username = data['username'].strip()
+        email = data['email'].strip().lower()
+        password = data['password']
+        
+        # Validar longitud mínima de username
+        if len(username) < 3:
+            return jsonify({'error': 'El nombre de usuario debe tener al menos 3 caracteres'}), 400
+        
+        # Validar longitud máxima de username
+        if len(username) > 50:
+            return jsonify({'error': 'El nombre de usuario no puede tener más de 50 caracteres'}), 400
+        
+        # Validar formato de email
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            return jsonify({'error': 'Formato de email inválido'}), 400
+        
+        # Validar longitud mínima de contraseña
+        if len(password) < 8:
+            return jsonify({'error': 'La contraseña debe tener al menos 8 caracteres'}), 400
+        
+        # Verificar si el usuario ya existe
+        existing_username = UsuarioModel.query.filter_by(username=username).first()
+        if existing_username:
+            return jsonify({'error': 'El nombre de usuario ya está en uso'}), 400
+        
+        existing_email = UsuarioModel.query.filter_by(email=email).first()
+        if existing_email:
+            return jsonify({'error': 'El correo electrónico ya está registrado'}), 400
+        
         # Forzar rol de cliente (no permitir admin en registro)
         data['rol'] = 'cliente'
         
         # Registrar usuario
         usuario = registrar_usuario_use_case.ejecutar(
-            username=data['username'],
-            email=data['email'],
-            password=data['password'],
+            username=username,
+            email=email,
+            password=password,
             rol=data['rol']
         )
         
@@ -161,6 +192,63 @@ def refresh():
         
         return jsonify({
             'access_token': access_token
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@auth_bp.route('/check-username', methods=['POST'])
+def check_username():
+    """Verificar disponibilidad de nombre de usuario"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('username'):
+            return jsonify({'error': 'Username requerido'}), 400
+        
+        username = data['username'].strip()
+        
+        # Validaciones básicas
+        if len(username) < 3:
+            return jsonify({'available': False, 'error': 'El nombre de usuario debe tener al menos 3 caracteres'}), 400
+        
+        if len(username) > 50:
+            return jsonify({'available': False, 'error': 'El nombre de usuario no puede tener más de 50 caracteres'}), 400
+        
+        # Verificar disponibilidad
+        existing_user = UsuarioModel.query.filter_by(username=username).first()
+        
+        return jsonify({
+            'available': existing_user is None,
+            'username': username
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Error interno del servidor'}), 500
+
+
+@auth_bp.route('/check-email', methods=['POST'])
+def check_email():
+    """Verificar disponibilidad de correo electrónico"""
+    try:
+        data = request.get_json()
+        
+        if not data or not data.get('email'):
+            return jsonify({'error': 'Email requerido'}), 400
+        
+        email = data['email'].strip().lower()
+        
+        # Validar formato de email
+        if '@' not in email or '.' not in email.split('@')[-1]:
+            return jsonify({'available': False, 'error': 'Formato de email inválido'}), 400
+        
+        # Verificar disponibilidad
+        existing_user = UsuarioModel.query.filter_by(email=email).first()
+        
+        return jsonify({
+            'available': existing_user is None,
+            'email': email
         }), 200
         
     except Exception as e:

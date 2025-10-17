@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from funcionalidades.faq.domain.entities.faq_entity import FAQ
 from funcionalidades.faq.domain.repositories.faq_repository import FAQRepository
+from funcionalidades.faq.application.use_cases.generar_faq_dinamicas_use_case import GenerarFAQDinamicasUseCase
 
 
 # Datos estáticos de FAQ
@@ -40,22 +41,67 @@ FAQ_DATA = [
 
 
 class FAQRepositoryImpl(FAQRepository):
+    def __init__(self):
+        self._dynamic_faq_generator = GenerarFAQDinamicasUseCase(self)
+
     def listar(self) -> List[FAQ]:
-        return FAQ_DATA.copy()
+        """Listar FAQ estáticas + dinámicas basadas en conversaciones reales"""
+        # Obtener FAQ estáticas
+        static_faqs = FAQ_DATA.copy()
+        
+        # Generar FAQ dinámicas basadas en conversaciones reales
+        try:
+            dynamic_faqs = self._dynamic_faq_generator.ejecutar(dias_atras=30)
+            print(f"📊 FAQ REPO: Combinando {len(static_faqs)} FAQ estáticas con {len(dynamic_faqs)} FAQ dinámicas")
+            
+            # Combinar FAQ estáticas y dinámicas
+            all_faqs = static_faqs + dynamic_faqs
+            
+            # Ordenar por ID (estáticas primero, luego dinámicas)
+            all_faqs.sort(key=lambda x: x.id)
+            
+            return all_faqs
+            
+        except Exception as e:
+            print(f"⚠️ FAQ REPO: Error generando FAQ dinámicas: {e}")
+            # En caso de error, devolver solo FAQ estáticas
+            return static_faqs
 
     def get_by_id(self, faq_id: int) -> Optional[FAQ]:
+        # Buscar en FAQ estáticas primero
         for faq in FAQ_DATA:
             if faq.id == faq_id:
                 return faq
+        
+        # Si no se encuentra, buscar en FAQ dinámicas
+        try:
+            dynamic_faqs = self._dynamic_faq_generator.ejecutar(dias_atras=30)
+            for faq in dynamic_faqs:
+                if faq.id == faq_id:
+                    return faq
+        except Exception as e:
+            print(f"⚠️ FAQ REPO: Error buscando FAQ dinámica {faq_id}: {e}")
+        
         return None
 
     def buscar_por_palabra_clave(self, palabra_clave: str) -> List[FAQ]:
         palabra_clave_lower = palabra_clave.lower()
         resultados = []
         
+        # Buscar en FAQ estáticas
         for faq in FAQ_DATA:
             if (palabra_clave_lower in faq.pregunta.lower() or 
                 palabra_clave_lower in faq.respuesta.lower()):
                 resultados.append(faq)
+        
+        # Buscar en FAQ dinámicas
+        try:
+            dynamic_faqs = self._dynamic_faq_generator.ejecutar(dias_atras=30)
+            for faq in dynamic_faqs:
+                if (palabra_clave_lower in faq.pregunta.lower() or 
+                    palabra_clave_lower in faq.respuesta.lower()):
+                    resultados.append(faq)
+        except Exception as e:
+            print(f"⚠️ FAQ REPO: Error buscando en FAQ dinámicas: {e}")
         
         return resultados

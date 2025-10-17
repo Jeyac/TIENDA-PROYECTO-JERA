@@ -1,9 +1,11 @@
 from typing import List, Optional
+from sqlalchemy.exc import IntegrityError
 
 from funcionalidades.core.infraestructura.database import db
 from funcionalidades.usuarios.domain.entities.usuario_entity import Usuario
 from funcionalidades.usuarios.domain.repositories.usuario_repository import UsuarioRepository
 from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
+from funcionalidades.core.exceptions import BadRequestError
 
 
 def _to_entity(model: UsuarioModel) -> Usuario:
@@ -19,16 +21,27 @@ def _to_entity(model: UsuarioModel) -> Usuario:
 
 class UsuarioRepositoryImpl(UsuarioRepository):
     def agregar(self, usuario: Usuario) -> Usuario:
-        model = UsuarioModel(
-            username=usuario.username,
-            email=usuario.email,
-            password_hash=usuario.password_hash,
-            rol=usuario.rol,
-            activo=usuario.activo,
-        )
-        db.session.add(model)
-        db.session.commit()
-        return _to_entity(model)
+        try:
+            model = UsuarioModel(
+                username=usuario.username,
+                email=usuario.email,
+                password_hash=usuario.password_hash,
+                rol=usuario.rol,
+                activo=usuario.activo,
+            )
+            db.session.add(model)
+            db.session.commit()
+            return _to_entity(model)
+        except IntegrityError as e:
+            db.session.rollback()
+            # Manejar errores de integridad de base de datos
+            error_msg = str(e.orig)
+            if 'username' in error_msg.lower():
+                raise BadRequestError('El nombre de usuario ya está en uso')
+            elif 'email' in error_msg.lower():
+                raise BadRequestError('El correo electrónico ya está registrado')
+            else:
+                raise BadRequestError('Error de integridad de datos')
 
     def listar(self) -> List[Usuario]:
         return [_to_entity(m) for m in UsuarioModel.query.all()]

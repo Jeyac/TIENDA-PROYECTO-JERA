@@ -9,6 +9,7 @@ from funcionalidades.tickets.application.use_cases.listar_tickets_use_case impor
 from funcionalidades.tickets.application.use_cases.agregar_actividad_ticket_use_case import AgregarActividadTicketUseCase
 from funcionalidades.tickets.infrastructure.ticket_repository_impl import TicketRepositoryImpl
 from funcionalidades.tickets.infrastructure.ticket_model import TicketModel
+from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
 
 ticket_bp = Blueprint('tickets', __name__)
 
@@ -67,6 +68,9 @@ def get_all_tickets():
         # Convertir entidades a diccionarios para JSON
         tickets_data = []
         for ticket in tickets:
+            # Obtener información adicional del modelo para nombres de usuario
+            ticket_model = TicketModel.query.get(ticket.id)
+            
             tickets_data.append({
                 'id': ticket.id,
                 'user_id': ticket.user_id,
@@ -80,7 +84,9 @@ def get_all_tickets():
                 'resolution': ticket.resolution,
                 'created_at': ticket.created_at.isoformat() if ticket.created_at else None,
                 'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
-                'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None
+                'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
+                'user_name': ticket_model.user.username if ticket_model and ticket_model.user else 'Usuario anónimo',
+                'assignee_name': ticket_model.assignee.username if ticket_model and ticket_model.assignee else None
             })
         
         return jsonify(tickets_data)
@@ -153,6 +159,25 @@ def get_assigned_tickets():
                 # Obtener información adicional del modelo para nombres de usuario
                 ticket_model = TicketModel.query.get(ticket.id)
                 
+                # Obtener actividades del ticket
+                activities = ticket_repository.get_actividades_by_ticket_id(ticket.id)
+                activities_data = []
+                for activity in activities:
+                    # Obtener información del usuario que hizo la actividad
+                    activity_user = UsuarioModel.query.get(activity.user_id)
+                    activities_data.append({
+                        'id': activity.id,
+                        'ticket_id': activity.ticket_id,
+                        'user_id': activity.user_id,
+                        'user_name': activity_user.username if activity_user else 'Usuario anónimo',
+                        'user_rol': activity_user.rol if activity_user else 'cliente',
+                        'activity_type': activity.activity_type,
+                        'description': activity.description,
+                        'old_value': activity.old_value,
+                        'new_value': activity.new_value,
+                        'created_at': activity.created_at.isoformat() if activity.created_at else None
+                    })
+                
                 tickets_data.append({
                     'id': ticket.id,
                     'user_id': ticket.user_id,
@@ -168,7 +193,8 @@ def get_assigned_tickets():
                     'updated_at': ticket.updated_at.isoformat() if ticket.updated_at else None,
                     'closed_at': ticket.closed_at.isoformat() if ticket.closed_at else None,
                     'assignee_name': ticket_model.assignee.username if ticket_model and ticket_model.assignee else None,
-                    'user_name': ticket_model.user.username if ticket_model and ticket_model.user else 'Usuario anónimo'
+                    'user_name': ticket_model.user.username if ticket_model and ticket_model.user else 'Usuario anónimo',
+                    'activities': activities_data
                 })
         
         return jsonify(tickets_data)
@@ -371,38 +397,51 @@ def get_ticket_activities(ticket_id):
 def add_ticket_message(ticket_id):
     """Agregar mensaje al chat del ticket (cliente y atención al cliente)"""
     try:
+        print(f"🔍 TICKET MESSAGE: Iniciando envío de mensaje para ticket {ticket_id}")
+        
         data = request.get_json()
+        print(f"🔍 TICKET MESSAGE: Datos recibidos: {data}")
         
         if not data or 'message' not in data:
+            print("❌ TICKET MESSAGE: Mensaje requerido faltante")
             return jsonify({'error': 'Mensaje requerido'}), 400
         
         from funcionalidades.core.infraestructura.auth import get_current_user_id
         from funcionalidades.usuarios.infrastructure.usuario_model import UsuarioModel
         
         user_id = get_current_user_id()
+        print(f"🔍 TICKET MESSAGE: User ID: {user_id}")
+        
         user = UsuarioModel.query.get(user_id)
+        print(f"🔍 TICKET MESSAGE: Usuario: {user.username if user else 'No encontrado'}")
         
         # Verificar que el ticket existe
         with current_app.app_context():
             ticket = obtener_ticket_use_case.ejecutar(ticket_id)
+            print(f"🔍 TICKET MESSAGE: Ticket encontrado: {ticket.id if ticket else 'No encontrado'}")
         
         # Verificar permisos: debe ser el creador del ticket o el asignado
         if user.rol == 'cliente' and ticket.user_id != user_id:
+            print("❌ TICKET MESSAGE: Cliente sin permisos")
             return jsonify({'error': 'No tienes permisos para enviar mensajes en este ticket'}), 403
         
         if user.rol == 'atencion_cliente' and ticket.assigned_to != user_id:
+            print("❌ TICKET MESSAGE: Atención al cliente sin permisos")
             return jsonify({'error': 'Este ticket no está asignado a ti'}), 403
+        
+        print(f"🔍 TICKET MESSAGE: Permisos verificados, creando actividad...")
         
         # Crear actividad de mensaje usando el caso de uso
         with current_app.app_context():
             activity = agregar_actividad_ticket_use_case.ejecutar(
                 ticket_id=ticket_id,
                 user_id=user_id,
-                activity_type='commented',
+                activity_type='message',
                 description=data['message']
             )
+            print(f"🔍 TICKET MESSAGE: Actividad creada: {activity.id}")
         
-        return jsonify({
+        response_data = {
             'id': activity.id,
             'message': 'Mensaje enviado exitosamente',
             'activity': {
@@ -415,9 +454,15 @@ def add_ticket_message(ticket_id):
                 'description': activity.description,
                 'created_at': activity.created_at.isoformat() if activity.created_at else None
             }
-        }), 201
+        }
+        
+        print(f"✅ TICKET MESSAGE: Mensaje enviado exitosamente")
+        return jsonify(response_data), 201
         
     except Exception as e:
+        print(f"❌ TICKET MESSAGE ERROR: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

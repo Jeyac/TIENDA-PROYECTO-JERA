@@ -14,7 +14,7 @@
               <BaseButton 
                 variant="outline-secondary btn-sm" 
                 @click="decrementarCantidad(it.producto_id)"
-                :disabled="it.cantidad <= 1"
+                :disabled="it.cantidad <= 1 || procesandoCantidad[it.producto_id]"
               >
                 <i class="bi bi-dash"></i>
               </BaseButton>
@@ -22,6 +22,7 @@
               <BaseButton 
                 variant="outline-secondary btn-sm" 
                 @click="incrementarCantidad(it.producto_id)"
+                :disabled="it.cantidad >= it.stock || procesandoCantidad[it.producto_id]"
               >
                 <i class="bi bi-plus"></i>
               </BaseButton>
@@ -82,18 +83,60 @@ const status = ref('')
 const facturacion = reactive({ nombre: '', identificacion: '', direccion: '', telefono: '' })
 const procesando = ref(false)
 
+// Flag para prevenir doble clic en incrementar/decrementar
+const procesandoCantidad = ref<Record<number, boolean>>({})
+
 // Funciones para manejar cantidades
-const incrementarCantidad = (producto_id: number) => {
-  const item = carrito.items.find(i => i.producto_id === producto_id)
-  if (item) {
-    item.cantidad += 1
+const incrementarCantidad = async (producto_id: number) => {
+  // Prevenir doble clic
+  if (procesandoCantidad.value[producto_id]) {
+    console.log(`Ya se está procesando incremento para producto ${producto_id}, ignorando clic`)
+    return
+  }
+  
+  procesandoCantidad.value[producto_id] = true
+  
+  try {
+    const item = carrito.items.find(i => i.producto_id === producto_id)
+    if (item) {
+      console.log(`Incrementando cantidad para producto ${producto_id}: ${item.cantidad} -> ${item.cantidad + 1} (stock: ${item.stock})`)
+      // Verificar que no exceda el stock disponible
+      if (item.cantidad < item.stock) {
+        item.cantidad += 1
+        console.log(`Cantidad actualizada a: ${item.cantidad}`)
+      } else {
+        console.log(`No se puede incrementar: cantidad (${item.cantidad}) >= stock (${item.stock})`)
+      }
+    } else {
+      console.log(`Producto ${producto_id} no encontrado en el carrito`)
+    }
+  } finally {
+    // Pequeño delay para evitar clics múltiples
+    await new Promise(resolve => setTimeout(resolve, 100))
+    procesandoCantidad.value[producto_id] = false
   }
 }
 
-const decrementarCantidad = (producto_id: number) => {
-  const item = carrito.items.find(i => i.producto_id === producto_id)
-  if (item && item.cantidad > 1) {
-    item.cantidad -= 1
+const decrementarCantidad = async (producto_id: number) => {
+  // Prevenir doble clic
+  if (procesandoCantidad.value[producto_id]) {
+    console.log(`Ya se está procesando decremento para producto ${producto_id}, ignorando clic`)
+    return
+  }
+  
+  procesandoCantidad.value[producto_id] = true
+  
+  try {
+    const item = carrito.items.find(i => i.producto_id === producto_id)
+    if (item && item.cantidad > 1) {
+      console.log(`Decrementando cantidad para producto ${producto_id}: ${item.cantidad} -> ${item.cantidad - 1}`)
+      item.cantidad -= 1
+      console.log(`Cantidad actualizada a: ${item.cantidad}`)
+    }
+  } finally {
+    // Pequeño delay para evitar clics múltiples
+    await new Promise(resolve => setTimeout(resolve, 100))
+    procesandoCantidad.value[producto_id] = false
   }
 }
 

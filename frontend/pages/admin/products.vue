@@ -565,7 +565,11 @@ const saveProduct = async () => {
     // Buscar o crear categoría
     let categoriaId = productForm.value.categoria_id
     
-    if (!categoriaId && productForm.value.categoria_nombre) {
+    // Verificar si el nombre de categoría ha cambiado o si es una nueva categoría
+    const currentCategory = categories.value.find(cat => cat.id === categoriaId)
+    const categoryNameChanged = currentCategory && currentCategory.nombre !== productForm.value.categoria_nombre
+    
+    if ((!categoriaId || categoryNameChanged) && productForm.value.categoria_nombre) {
       // Buscar si la categoría ya existe
       const existingCategory = categories.value.find(cat => 
         cat.nombre.toLowerCase() === productForm.value.categoria_nombre.toLowerCase()
@@ -575,6 +579,7 @@ const saveProduct = async () => {
         categoriaId = existingCategory.id
       } else {
         // Crear nueva categoría
+        console.log('Creando nueva categoría:', productForm.value.categoria_nombre)
         const categoryResponse = await auth.makeAuthenticatedRequest('/api/categorias', {
           method: 'POST',
           headers: {
@@ -590,8 +595,10 @@ const saveProduct = async () => {
           const newCategory = await categoryResponse.json()
           categoriaId = newCategory.id
           categories.value.push(newCategory)
+          console.log('Categoría creada exitosamente:', newCategory)
         } else {
-          throw new Error('Error al crear la categoría')
+          const errorData = await categoryResponse.json()
+          throw new Error(errorData.message || 'Error al crear la categoría')
         }
       }
     }

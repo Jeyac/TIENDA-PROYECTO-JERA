@@ -5,6 +5,7 @@ type CarritoItem = {
   titulo: string
   precio_unitario: number
   cantidad: number
+  stock: number
 }
 
 export const useCarritoStore = defineStore('carrito', {
@@ -30,9 +31,16 @@ export const useCarritoStore = defineStore('carrito', {
       if (found) {
         // Si el producto ya existe, establecer la cantidad exacta (no sumar)
         found.cantidad = cantidad
+        found.stock = p.stock // Actualizar stock también
       } else {
         // Si es un producto nuevo, agregarlo con la cantidad especificada
-        this.items.push({ producto_id: p.id, titulo: p.titulo, precio_unitario: p.precio, cantidad })
+        this.items.push({ 
+          producto_id: p.id, 
+          titulo: p.titulo, 
+          precio_unitario: p.precio, 
+          cantidad,
+          stock: p.stock
+        })
       }
     },
     quitarItem(producto_id: number) {

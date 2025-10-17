@@ -308,8 +308,8 @@
                     <!-- Messages -->
                     <div class="chat-messages mb-3" style="height: 300px; overflow-y: auto; border: 1px solid #dee2e6; padding: 1rem; border-radius: 0.375rem;">
                       <div v-for="message in ticketMessages" :key="message.id" class="mb-3">
-                        <div :class="message.user_rol === 'cliente' ? 'text-end' : 'text-start'">
-                          <div :class="message.user_rol === 'cliente' ? 'bg-primary text-white' : 'bg-light'" 
+                        <div :class="message.user_id === auth.user?.id ? 'text-end' : 'text-start'">
+                          <div :class="message.user_id === auth.user?.id ? 'bg-primary text-white' : 'bg-light'" 
                                class="d-inline-block p-2 rounded" style="max-width: 70%;">
                             <div class="fw-bold">{{ message.user_name }}</div>
                             <div>{{ message.description }}</div>
@@ -560,6 +560,9 @@ const viewTicket = async (ticket: any) => {
   selectedTicket.value = ticket
   showViewModal.value = true
   
+  console.log('📥 TICKET CHAT: Cargando ticket:', ticket.id)
+  console.log('📥 TICKET CHAT: Mensajes actuales:', ticketMessages.value.length)
+  
   // Load messages for this ticket
   if (!ticket.id) {
     console.error('Ticket sin ID:', ticket)
@@ -569,11 +572,43 @@ const viewTicket = async (ticket: any) => {
   
   try {
     const response = await auth.makeAuthenticatedRequest(`/api/tickets/${ticket.id}/activities`)
+    console.log('📥 TICKET CHAT: Respuesta actividades:', response.status, response.ok)
+    
     if (response.ok) {
       const activities = await response.json()
+      console.log('📥 TICKET CHAT: Actividades recibidas:', activities.length)
+      console.log('📥 TICKET CHAT: Actividades:', activities)
+      
+      // Mostrar la estructura de cada actividad
+      activities.forEach((activity: any, index: number) => {
+        console.log(`📥 TICKET CHAT: Actividad ${index}:`, {
+          id: activity.id,
+          activity_type: activity.activity_type,
+          description: activity.description,
+          user_name: activity.user_name,
+          user_rol: activity.user_rol,
+          created_at: activity.created_at
+        })
+      })
+      
       // Filtrar solo los mensajes (actividades de tipo 'message')
-      ticketMessages.value = activities.filter((activity: any) => activity.activity_type === 'message')
+      const messages = activities.filter((activity: any) => activity.activity_type === 'message')
+      console.log('📥 TICKET CHAT: Mensajes filtrados:', messages.length)
+      console.log('📥 TICKET CHAT: Mensajes:', messages)
+      
+      ticketMessages.value = messages
+      console.log('📥 TICKET CHAT: Mensajes asignados:', ticketMessages.value.length)
     }
+    
+    // Solo marcar como visto si había mensajes no leídos
+    if (hasUnreadMessages(ticket)) {
+      markTicketAsViewed(ticket.id)
+    }
+    
+    // Hacer scroll al final del chat
+    setTimeout(() => {
+      scrollToBottom()
+    }, 100)
   } catch (err) {
     console.error('Error al cargar mensajes:', err)
     ticketMessages.value = []
@@ -582,6 +617,10 @@ const viewTicket = async (ticket: any) => {
 
 const addMessage = async () => {
   if (!selectedTicket.value || !newMessage.value.trim()) return
+  
+  console.log('📤 TICKET CHAT: Enviando mensaje:', newMessage.value)
+  console.log('📤 TICKET CHAT: Ticket ID:', selectedTicket.value.id)
+  console.log('📤 TICKET CHAT: Mensajes antes:', ticketMessages.value.length)
   
   if (!selectedTicket.value.id) {
     console.error('Ticket sin ID:', selectedTicket.value)
@@ -601,10 +640,17 @@ const addMessage = async () => {
       })
     })
 
+    console.log('📤 TICKET CHAT: Respuesta del servidor:', response.status, response.ok)
+
     if (response.ok) {
       newMessage.value = ''
+      console.log('📤 TICKET CHAT: Mensaje enviado exitosamente, recargando...')
       // Recargar mensajes para obtener el mensaje recién enviado
       await viewTicket(selectedTicket.value)
+      // Hacer scroll al final después de enviar mensaje
+      setTimeout(() => {
+        scrollToBottom()
+      }, 100)
     } else {
       const errorData = await response.json()
       throw new Error(errorData.error || 'Error al enviar mensaje')
@@ -751,16 +797,35 @@ const hasUnreadMessages = (ticket: any) => {
   
   if (!ticket.activities || ticket.activities.length === 0) return false
   
-  // Obtener todos los mensajes ordenados por fecha
-  const messages = ticket.activities
-    .filter((activity: any) => activity.activity_type === 'message')
-    .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  
+  // Obtener todos los mensajes
+  const messages = ticket.activities.filter((activity: any) => activity.activity_type === 'message')
   if (messages.length === 0) return false
   
-  // Si el último mensaje es del agente (no del cliente), hay un mensaje no leído
-  const lastMessage = messages[messages.length - 1]
-  return lastMessage && lastMessage.user_rol !== 'cliente'
+  // Obtener la última vez que se vio este ticket
+  const lastViewedKey = `ticket_${ticket.id}_last_viewed`
+  const lastViewed = localStorage.getItem(lastViewedKey)
+  
+  if (!lastViewed) {
+    // Si nunca se ha visto, mostrar notificación
+    return true
+  }
+  
+  // Buscar si hay mensajes más recientes que la última vez que se vio
+  const lastViewedTime = new Date(lastViewed).getTime()
+  return messages.some((message: any) => new Date(message.created_at).getTime() > lastViewedTime)
+}
+
+const markTicketAsViewed = (ticketId: number) => {
+  const lastViewedKey = `ticket_${ticketId}_last_viewed`
+  localStorage.setItem(lastViewedKey, new Date().toISOString())
+  console.log('👁️ TICKET: Marcado como visto:', ticketId)
+}
+
+const scrollToBottom = () => {
+  const chatContainer = document.querySelector('.chat-messages')
+  if (chatContainer) {
+    chatContainer.scrollTop = chatContainer.scrollHeight
+  }
 }
 
 const filterTickets = () => {

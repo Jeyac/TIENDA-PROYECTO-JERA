@@ -134,5 +134,5 @@ class TicketRepositoryImpl(TicketRepository):
         return _to_ticket_activity_entity(model)
 
     def get_actividades_by_ticket_id(self, ticket_id: int) -> List[TicketActivity]:
-        models = TicketActivityModel.query.filter_by(ticket_id=ticket_id).order_by(TicketActivityModel.created_at.desc()).all()
+        models = TicketActivityModel.query.filter_by(ticket_id=ticket_id).order_by(TicketActivityModel.created_at.asc()).all()
         return [_to_ticket_activity_entity(model) for model in models]

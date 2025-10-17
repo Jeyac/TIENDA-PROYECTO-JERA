@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, make_response
 
 from funcionalidades.core.infraestructura.auth import jwt_required
 from funcionalidades.core.exceptions import BadRequestError, NotFoundError
@@ -13,21 +13,67 @@ from funcionalidades.categorias.infrastructure.categoria_repository_impl import 
 categorias_bp = Blueprint('categorias', __name__)
 repo = CategoriaRepositoryImpl()
 
+@categorias_bp.before_request
+def categorias_preflight_handler():
+    """Manejador de preflight CORS para categorías"""
+    if request.method == 'OPTIONS':
+        resp = make_response('', 200)
+        origin = request.headers.get('Origin')
+        if origin:
+            resp.headers['Access-Control-Allow-Origin'] = origin
+            resp.headers['Vary'] = 'Origin'
+        req_headers = request.headers.get('Access-Control-Request-Headers') or 'Content-Type, Authorization'
+        resp.headers['Access-Control-Allow-Headers'] = req_headers
+        resp.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Access-Control-Max-Age'] = '600'
+        return resp
+
 
 @categorias_bp.route('/', methods=['POST', 'OPTIONS'])
 @jwt_required(roles={'administrador'})
 def crear_categoria():
+    print("=== Creando nueva categoría ===")
     data = request.get_json(silent=True) or {}
+    print(f"Datos recibidos: {data}")
+    
     try:
+        # Validar datos requeridos
+        if not data.get('nombre') or not data.get('nombre').strip():
+            return jsonify({'message': 'El nombre es obligatorio'}), 400
+        
+        if not data.get('descripcion') or not data.get('descripcion').strip():
+            return jsonify({'message': 'La descripción es obligatoria'}), 400
+        
+        # Verificar si ya existe una categoría con ese nombre
+        from funcionalidades.categorias.infrastructure.categoria_model import CategoriaModel
+        existing = CategoriaModel.query.filter_by(nombre=data['nombre'].strip()).first()
+        if existing:
+            return jsonify({'message': 'Ya existe una categoría con ese nombre'}), 400
+        
         use_case = CrearCategoriaUseCase(repo)
         categoria = use_case.ejecutar(
-            nombre=data.get('nombre'),
-            descripcion=data.get('descripcion'),
+            nombre=data.get('nombre').strip(),
+            descripcion=data.get('descripcion').strip(),
             activa=data.get('activa', True)
         )
-        return jsonify(categoria.__dict__), 201
+        
+        print(f"Categoría creada exitosamente: {categoria.nombre}")
+        return jsonify({
+            'id': categoria.id,
+            'nombre': categoria.nombre,
+            'descripcion': categoria.descripcion,
+            'activa': categoria.activa
+        }), 201
+        
     except BadRequestError as exc:
+        print(f"BadRequestError: {exc}")
         return jsonify({'message': str(exc)}), 400
+    except Exception as exc:
+        print(f"Error creando categoría: {exc}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'message': f'Error interno del servidor: {str(exc)}'}), 500
 
 
 @categorias_bp.route('/', methods=['GET', 'OPTIONS'])

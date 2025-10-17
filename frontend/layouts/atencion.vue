@@ -33,7 +33,7 @@
       <header class="topbar">
         <div class="d-flex justify-content-between align-items-center w-100">
           <div>
-            <h4 class="mb-0">Tickets asignados</h4>
+            <h4 class="mb-0">{{ getPageTitle() }}</h4>
           </div>
           <div class="d-flex align-items-center gap-2">
             <div class="user-info">
@@ -68,6 +68,10 @@ const { $theme } = useNuxtApp()
 const handleLogout = async () => {
   await auth.logout()
   router.push('/login')
+}
+
+const getPageTitle = () => {
+  return 'Tickets asignados'
 }
 </script>
 

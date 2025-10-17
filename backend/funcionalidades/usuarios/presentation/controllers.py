@@ -70,12 +70,17 @@ def crear_usuario():
         return jsonify({'error': 'El email ya existe'}), 400
     
     try:
+        # Validar rol
+        rol = data.get('rol', 'cliente')
+        if rol not in {'cliente', 'administrador', 'atencion_cliente'}:
+            return jsonify({'error': 'Rol inválido. Roles permitidos: cliente, administrador, atencion_cliente'}), 400
+        
         # Crear nuevo usuario
         usuario = UsuarioModel(
             username=data['username'],
             email=data['email'],
             password_hash=hash_password(data['password']),
-            rol=data.get('rol', 'usuario')
+            rol=rol
         )
         
         db.session.add(usuario)

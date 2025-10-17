@@ -117,43 +117,43 @@
             <div class="card-header bg-white border-bottom">
               <h5 class="card-title mb-0">
                 <i class="bi bi-question-circle me-2"></i>Preguntas frecuentes
+                <span v-if="loadingFaqs" class="spinner-border spinner-border-sm ms-2"></span>
               </h5>
             </div>
             <div class="card-body">
-              <div class="accordion" id="faqAccordion">
-                <div class="accordion-item">
-                  <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
-                      ¿Cómo puedo hacer un pedido?
-                    </button>
-                  </h2>
-                  <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                    <div class="accordion-body">
-                      Navega por nuestro catálogo, añade productos al carrito y procede al checkout. Necesitarás registrarte para completar el pedido.
-                    </div>
-                  </div>
+              <div v-if="loadingFaqs" class="text-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Cargando...</span>
                 </div>
-                <div class="accordion-item">
+                <p class="mt-2 text-muted">Cargando preguntas frecuentes...</p>
+              </div>
+              
+              <div v-else-if="faqs.length === 0" class="text-center py-3">
+                <i class="bi bi-question-circle text-muted" style="font-size: 2rem;"></i>
+                <p class="text-muted mt-2">No hay preguntas frecuentes disponibles</p>
+              </div>
+              
+              <div v-else class="accordion" id="faqAccordion">
+                <div v-for="(faq, index) in faqs" :key="faq.id" class="accordion-item">
                   <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
-                      ¿Cuáles son los métodos de pago?
+                    <button 
+                      class="accordion-button collapsed" 
+                      type="button" 
+                      :data-bs-toggle="'collapse'" 
+                      :data-bs-target="`#faq${faq.id}`"
+                      :aria-expanded="false"
+                    >
+                      {{ faq.pregunta }}
+                      <span v-if="faq.id >= 1000" class="badge bg-info ms-2">Dinámica</span>
                     </button>
                   </h2>
-                  <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                  <div 
+                    :id="`faq${faq.id}`" 
+                    class="accordion-collapse collapse" 
+                    data-bs-parent="#faqAccordion"
+                  >
                     <div class="accordion-body">
-                      Aceptamos tarjetas de crédito/débito, PayPal y transferencias bancarias.
-                    </div>
-                  </div>
-                </div>
-                <div class="accordion-item">
-                  <h2 class="accordion-header">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
-                      ¿Cuánto tardan los envíos?
-                    </button>
-                  </h2>
-                  <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
-                    <div class="accordion-body">
-                      Los envíos tardan entre 2-5 días hábiles. 
+                      {{ faq.respuesta }}
                     </div>
                   </div>
                 </div>
@@ -254,6 +254,10 @@ const loading = ref(false)
 const showTicketModal = ref(false)
 const creatingTicket = ref(false)
 
+// FAQ dinámicas
+const faqs = ref<Array<{id: number, pregunta: string, respuesta: string}>>([])
+const loadingFaqs = ref(false)
+
 // Quick ticket form
 const quickTicketForm = reactive({
   titulo: '',
@@ -262,6 +266,30 @@ const quickTicketForm = reactive({
 })
 
 let socket: any
+
+// Cargar FAQ dinámicas del backend
+const loadFaqs = async () => {
+  loadingFaqs.value = true
+  try {
+    const response = await auth.makeAuthenticatedRequest('/api/faq', {
+      method: 'GET'
+    })
+    
+    if (response.ok) {
+      const faqsData = await response.json()
+      faqs.value = faqsData
+      console.log(`📋 FAQ cargadas: ${faqsData.length} (${faqsData.filter((f: any) => f.id >= 1000).length} dinámicas)`)
+    } else {
+      console.error('Error cargando FAQ:', response.statusText)
+      faqs.value = []
+    }
+  } catch (error) {
+    console.error('Error cargando FAQ:', error)
+    faqs.value = []
+  } finally {
+    loadingFaqs.value = false
+  }
+}
 
 const connectSocket = () => {
   // Si ya hay un socket conectado, no hacer nada
@@ -315,7 +343,9 @@ const updateSocketAuth = () => {
 
 const setupSocketListeners = () => {
   socket.on('connect', () => {
-    console.log('Conectado al chat de la tienda online - Socket ID:', socket.id)
+    console.log('✅ Conectado al chat de la tienda online - Socket ID:', socket.id)
+    console.log('✅ Socket conectado:', socket.connected)
+    console.log('✅ Mensajes actuales:', messages.value.length)
   })
   
   socket.on('connect_error', (error: any) => {
@@ -338,6 +368,9 @@ const setupSocketListeners = () => {
   })
   
   socket.on('answer', (data: any) => {
+    console.log('📥 Respuesta recibida:', data)
+    console.log('📥 Mensajes antes de agregar respuesta:', messages.value.length)
+    
     const suggestTicket = data?.message?.toLowerCase().includes('ticket') || 
                          data?.message?.toLowerCase().includes('soporte') ||
                          data?.message?.toLowerCase().includes('especialista') ||
@@ -358,13 +391,23 @@ const setupSocketListeners = () => {
                           data?.message?.toLowerCase().includes('ver más') ||
                           data?.message?.toLowerCase().includes('saber más')
     
-    messages.value.push({ 
-      role: 'bot', 
+    const botMessage = { 
+      role: 'bot' as const, 
       content: data?.message || 'Sin respuesta',
       suggestTicket: suggestTicket,
       suggestCatalog: suggestCatalog
+    }
+    
+    messages.value.push(botMessage)
+    console.log('📥 Mensajes después de agregar respuesta:', messages.value.length)
+    console.log('📥 Último mensaje:', messages.value[messages.value.length - 1])
+    
+    nextTick(() => {
+      if (msgsRef.value) {
+        msgsRef.value.scrollTop = msgsRef.value.scrollHeight
+        console.log('📥 Scroll actualizado después de respuesta')
+      }
     })
-    nextTick(() => msgsRef.value && (msgsRef.value.scrollTop = msgsRef.value.scrollHeight))
   })
   
   socket.on('error', (data: any) => {
@@ -387,6 +430,9 @@ const setupSocketListeners = () => {
 onMounted(() => {
   if (!auth.isAuthenticated) return
   
+  // Cargar FAQ dinámicas
+  loadFaqs()
+  
   // Conectar socket inicial
   connectSocket()
   
@@ -408,12 +454,26 @@ onUnmounted(() => {
 const send = () => {
   if (!text.value.trim() || !socket || loading.value) return
   
+  console.log('📤 Enviando mensaje:', text.value)
+  console.log('📤 Socket conectado:', socket?.connected)
+  console.log('📤 Mensajes antes:', messages.value.length)
+  
   loading.value = true
-  messages.value.push({ role: 'user', content: text.value })
+  const userMessage = { role: 'user' as const, content: text.value }
+  messages.value.push(userMessage)
+  
+  console.log('📤 Mensajes después de agregar:', messages.value.length)
+  console.log('📤 Último mensaje:', messages.value[messages.value.length - 1])
+  
   socket.emit('ask', { message: text.value })
   text.value = ''
   
-  nextTick(() => msgsRef.value && (msgsRef.value.scrollTop = msgsRef.value.scrollHeight))
+  nextTick(() => {
+    if (msgsRef.value) {
+      msgsRef.value.scrollTop = msgsRef.value.scrollHeight
+      console.log('📤 Scroll actualizado')
+    }
+  })
   
   // Simular tiempo de respuesta
   setTimeout(() => {

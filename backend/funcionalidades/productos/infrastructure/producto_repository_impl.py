@@ -55,7 +55,11 @@ class ProductoRepositoryImpl(ProductoRepository):
     def eliminar(self, producto_id: int) -> None:
         model = ProductoModel.query.get(producto_id)
         if model:
+            print(f"Eliminando producto {producto_id}: {model.titulo}")
             db.session.delete(model)
             db.session.commit()
+            print(f"Producto {producto_id} eliminado exitosamente")
+        else:
+            print(f"Producto {producto_id} no encontrado para eliminar")
 
 
