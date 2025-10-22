@@ -37,9 +37,15 @@ services:
       - key: FROM_EMAIL
         value: jacevedoj@miumg.edu.gt
       - key: FRONTEND_URL
-        value: https://tienda-frontend.onrender.com
+        fromService:
+          type: web
+          name: tienda-frontend
+          property: url
       - key: CORS_ORIGINS
-        value: https://tienda-frontend.onrender.com
+        fromService:
+          type: web
+          name: tienda-frontend
+          property: url
 
   - type: web
     name: tienda-frontend
@@ -49,4 +55,7 @@ services:
     rootDir: frontend
     envVars:
       - key: NUXT_PUBLIC_API_BASE
-        value: https://tienda-backend.onrender.com
+        fromService:
+          type: web
+          name: tienda-backend
+          property: url
