@@ -2,6 +2,7 @@ services:
   - type: web
     name: tienda-backend
     env: python
+    plan: starter
     buildCommand: pip install -r requirements.txt
     startCommand: python app.py
     rootDir: backend
@@ -37,25 +38,17 @@ services:
       - key: FROM_EMAIL
         value: jacevedoj@miumg.edu.gt
       - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: tienda-frontend
-          property: url
+        value: https://tienda-frontend.onrender.com
       - key: CORS_ORIGINS
-        fromService:
-          type: web
-          name: tienda-frontend
-          property: url
+        value: https://tienda-frontend.onrender.com
 
   - type: web
     name: tienda-frontend
     env: static
+    plan: starter
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     rootDir: frontend
     envVars:
       - key: NUXT_PUBLIC_API_BASE
-        fromService:
-          type: web
-          name: tienda-backend
-          property: url
+        value: https://tienda-backend.onrender.com
