@@ -131,9 +131,9 @@ def create_app() -> Flask:
 
     return app
 
+    application = create_app()
 
 if __name__ == '__main__':
-    application = create_app()
     # Registrar eventos de socket (import lado-efecto)
     from funcionalidades.core.presentation import chat_socket  # noqa: F401
     socketio.run(application, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
