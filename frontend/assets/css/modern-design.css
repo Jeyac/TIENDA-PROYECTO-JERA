@@ -117,6 +117,42 @@ button.btn:not(.btn-link) {
   color: white;
 }
 
+/* Botón naranja personalizado - SIEMPRE naranja */
+.btn-naranja {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+  border: none !important;
+  color: white !important;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+}
+
+.btn-naranja:hover {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 53, 0.4);
+  color: white !important;
+}
+
+.btn-naranja:focus {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+  box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.5);
+  color: white !important;
+}
+
+.btn-naranja:active {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+  transform: translateY(0);
+  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+  color: white !important;
+}
+
+.btn-naranja:disabled {
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%) !important;
+  opacity: 0.6;
+  color: white !important;
+}
+
 /* Modern Form Controls */
 .form-control-modern {
   border-radius: var(--border-radius-sm);
@@ -381,6 +417,3 @@ button.btn:not(.btn-link) {
     color: #000000 !important; /* Mantener fuentes en negro */
   }
 }
-
-
-
