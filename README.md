@@ -23,7 +23,6 @@ Aplicación full‑stack de e‑commerce con panel de administración y atenció
 │  ├─ stores/, middleware/, composables/
 │  ├─ nuxt.config.ts             # Configuración Nuxt
 │  └─ package.json               # Dependencias del frontend
-├─ uploads/                      # Archivos subidos (imágenes de productos)
 ```
 
 ## Requisitos
