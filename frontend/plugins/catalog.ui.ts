@@ -4,14 +4,8 @@ export default defineNuxtPlugin(() => {
   const catalogUi = {
     card: 'product-card',
     badgeCategory: 'badge bg-secondary',
-    btnAdd: 'btn btn-primary'
+    btnAdd: 'btn btn-naranja'
   }
   return { provide: { catalogUi } }
 })
-
-
-
-
-
-
 
